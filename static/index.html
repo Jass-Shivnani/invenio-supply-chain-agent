@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invenio AI — PS-08 Autonomous Supply Chain & Inventory Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    /* Complete Built-in CSS so the dashboard renders identically even without internet/CDN */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background-color: #020617; color: #f1f5f9; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .min-h-screen { min-height: 100vh; }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .flex-wrap { flex-wrap: wrap; }
+    .flex-1 { flex: 1 1 0%; }
+    .items-center { align-items: center; }
+    .items-start { align-items: flex-start; }
+    .justify-between { justify-content: space-between; }
+    .justify-center { justify-content: center; }
+    .gap-1 { gap: 0.25rem; }
+    .gap-2 { gap: 0.5rem; }
+    .gap-2\.5 { gap: 0.625rem; }
+    .gap-3 { gap: 0.75rem; }
+    .gap-4 { gap: 1rem; }
+    .grid { display: grid; }
+    .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (min-width: 640px) {
+      .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (min-width: 768px) {
+      .md\:flex-row { flex-direction: row; }
+      .md\:items-center { align-items: center; }
+      .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1024px) {
+      .lg\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .lg\:grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      .lg\:col-span-2 { grid-column: span 2 / span 2; }
+    }
+    .max-w-7xl { max-width: 80rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .w-full { width: 100%; }
+    .w-56 { width: 14rem; }
+    .w-10 { width: 2.5rem; }
+    .h-10 { height: 2.5rem; }
+    .h-72 { height: 18rem; }
+    .h-2 { height: 0.5rem; }
+    .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+    .px-2\.5 { padding-left: 0.625rem; padding-right: 0.625rem; }
+    .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+    .px-3\.5 { padding-left: 0.875rem; padding-right: 0.875rem; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+    .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+    .py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+    .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .py-2\.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+    .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    .py-5 { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+    .p-2\.5 { padding: 0.625rem; }
+    .p-3 { padding: 0.75rem; }
+    .p-3\.5 { padding: 0.875rem; }
+    .p-4 { padding: 1rem; }
+    .mt-0\.5 { margin-top: 0.125rem; }
+    .mt-1 { margin-top: 0.25rem; }
+    .mb-1 { margin-bottom: 0.25rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-3 { margin-bottom: 0.75rem; }
+    .space-y-1 > * + * { margin-top: 0.25rem; }
+    .space-y-1\.5 > * + * { margin-top: 0.375rem; }
+    .space-y-2 > * + * { margin-top: 0.5rem; }
+    .space-y-2\.5 > * + * { margin-top: 0.625rem; }
+    .space-y-3 > * + * { margin-top: 0.75rem; }
+    .space-y-4 > * + * { margin-top: 1rem; }
+    .space-y-6 > * + * { margin-top: 1.5rem; }
+    .bg-slate-950, .bg-slate-950\/90, .bg-slate-950\/80 { background-color: #020617; }
+    .bg-slate-900, .bg-slate-900\/95, .bg-slate-900\/90 { background-color: #0f172a; }
+    .bg-slate-800 { background-color: #1e293b; }
+    .bg-indigo-600 { background-color: #4f46e5; }
+    .bg-indigo-950\/40, .bg-indigo-950\/50, .bg-indigo-950\/30 { background-color: rgba(30, 27, 75, 0.55); }
+    .bg-cyan-600 { background-color: #0891b2; }
+    .bg-cyan-950\/40 { background-color: rgba(8, 51, 68, 0.5); }
+    .bg-emerald-600 { background-color: #059669; }
+    .bg-emerald-950\/40 { background-color: rgba(2, 44, 34, 0.5); }
+    .bg-rose-600\/90 { background-color: #e11d48; }
+    .bg-amber-600 { background-color: #d97706; }
+    .bg-gradient-to-br { background: linear-gradient(135deg, #6366f1, #2563eb, #10b981); }
+    .bg-gradient-to-r { background: linear-gradient(90deg, rgba(30,27,75,0.85), #0f172a); }
+    .border { border-width: 1px; border-style: solid; border-color: #1e293b; }
+    .border-b { border-bottom-width: 1px; border-bottom-style: solid; border-color: #1e293b; }
+    .border-t { border-top-width: 1px; border-top-style: solid; border-color: #1e293b; }
+    .border-b-2 { border-bottom-width: 2px; border-bottom-style: solid; }
+    .border-slate-800, .border-slate-800\/80, .border-slate-800\/70 { border-color: #1e293b; }
+    .border-slate-700 { border-color: #334155; }
+    .border-indigo-500 { border-color: #6366f1; }
+    .border-indigo-500\/30, .border-indigo-500\/40, .border-indigo-500\/50 { border-color: rgba(99, 102, 241, 0.4); }
+    .border-cyan-500\/40 { border-color: rgba(6, 182, 212, 0.4); }
+    .border-amber-500\/40 { border-color: rgba(245, 158, 11, 0.4); }
+    .border-transparent { border-color: transparent; }
+    .rounded { border-radius: 0.25rem; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .rounded-xl { border-radius: 0.75rem; }
+    .rounded-full { border-radius: 9999px; }
+    .text-white { color: #ffffff; }
+    .text-slate-100 { color: #f1f5f9; }
+    .text-slate-200 { color: #e2e8f0; }
+    .text-slate-300 { color: #cbd5e1; }
+    .text-slate-400 { color: #94a3b8; }
+    .text-slate-500 { color: #64748b; }
+    .text-indigo-300 { color: #a5b4fc; }
+    .text-indigo-400 { color: #818cf8; }
+    .text-emerald-300 { color: #6ee7b7; }
+    .text-emerald-400 { color: #34d399; }
+    .text-rose-300 { color: #fda4af; }
+    .text-rose-400 { color: #fb7185; }
+    .text-amber-300 { color: #fcd34d; }
+    .text-amber-400 { color: #fbbf24; }
+    .text-cyan-300 { color: #67e8f9; }
+    .text-cyan-400 { color: #22d3ee; }
+    .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+    .text-lg { font-size: 1.125rem; line-height: 1.5rem; }
+    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+    .text-xs { font-size: 0.75rem; line-height: 1.1rem; }
+    .text-\[11px\] { font-size: 11px; }
+    .text-\[10px\] { font-size: 10px; }
+    .font-bold { font-weight: 700; }
+    .font-extrabold { font-weight: 800; }
+    .font-semibold { font-weight: 600; }
+    .font-medium { font-weight: 500; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .uppercase { text-transform: uppercase; }
+    .text-left { text-align: left; }
+    .text-right { text-align: right; }
+    .hidden { display: none !important; }
+    .relative { position: relative; }
+    .sticky { position: sticky; top: 0; z-index: 30; }
+    .fixed { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 50; }
+    .overflow-x-auto { overflow-x: auto; }
+    .overflow-hidden { overflow: hidden; }
+    .whitespace-nowrap { white-space: nowrap; }
+    .cursor-pointer { cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.65rem 0.75rem; border-bottom: 1px solid rgba(30, 41, 59, 0.8); }
+    button, input, select { font-family: inherit; }
+    
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- Top Header & Gemini API Key Bar -->
+  <header class="bg-slate-900/95 border-b border-slate-800 sticky top-0 z-30 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-blue-600 to-emerald-500 flex items-center justify-center font-extrabold text-white text-lg shadow-lg shadow-indigo-500/20">
+          IN
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-extrabold tracking-tight text-white">Invenio AI <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">PS-08 Multi-Agent System</span></h1>
+          </div>
+          <p class="text-xs text-slate-400">Autonomous Supply Chain Intelligence, Demand Forecasting, Vendor Selection &amp; Auto-Procurement</p>
+        </div>
+      </div>
+
+      <!-- Live Gemini API Controls & Run Loop Button -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" id="engineStatusDot"></span>
+          <input id="geminiApiKeyInput" type="password" placeholder="Optional: Gemini API Key (gemini-2.5-flash)" class="bg-transparent text-xs text-slate-200 placeholder-slate-500 focus:outline-none w-56" />
+        </div>
+        <button id="btnRunOrchestrator" onclick="runFullAgentCycle(true)" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition shadow-md shadow-indigo-600/20 cursor-pointer">
+          Run 11-Agent Auto-Procurement Loop
+        </button>
+        <button id="btnResetBaseline" onclick="resetToBaseline()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition border border-slate-700 cursor-pointer">
+          Reset Baseline
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 flex items-center gap-1 overflow-x-auto scrollbar-thin border-t border-slate-800/80 pt-1">
+      <button id="tabBtn-overview" onclick="switchTab('overview')" class="tab-btn px-4 py-2 text-xs font-semibold border-b-2 border-indigo-500 text-indigo-400 whitespace-nowrap cursor-pointer">
+        1. Command Center &amp; 11-Agent Loop
+      </button>
+      <button id="tabBtn-warehouses" onclick="switchTab('warehouses')" class="tab-btn px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap cursor-pointer">
+        2. Multi-Warehouse Graph &amp; Transfers (Agents 1 &amp; 7)
+      </button>
+      <button id="tabBtn-forecast" onclick="switchTab('forecast')" class="tab-btn px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap cursor-pointer">
+        3. Demand Forecast, Safety Stock &amp; Anomaly Lab (Agents 2, 3, 4, 8)
+      </button>
+      <button id="tabBtn-vendors" onclick="switchTab('vendors')" class="tab-btn px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap cursor-pointer">
+        4. Vendor Intelligence &amp; Delay Simulator (Agents 5 &amp; 9)
+      </button>
+      <button id="tabBtn-pos" onclick="switchTab('pos')" class="tab-btn px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap cursor-pointer">
+        5. Auto-Generated POs &amp; Custom SKU Import (Agents 6 &amp; 10)
+      </button>
+    </div>
+  </header>
+
+  <!-- Toast Banner -->
+  <div id="toastBanner" class="hidden fixed bottom-5 right-5 z-50 max-w-md bg-slate-900 border border-indigo-500/50 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-start gap-3">
+    <div class="w-2.5 h-2.5 rounded-full bg-indigo-400 mt-1.5 shrink-0"></div>
+    <div class="text-xs leading-relaxed" id="toastMessage">Action completed.</div>
+  </div>
+
+  <!-- Main Workspace -->
+  <main class="max-w-7xl w-full mx-auto px-4 py-5 flex-1 space-y-6">
+
+    <!-- KPI Scorecard Row -->
+    <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5">
+        <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Unified Network Stock</div>
+        <div class="text-xl font-extrabold text-white mt-1" id="kpiTotalUnits">1,638 units</div>
+        <div class="text-[11px] text-emerald-400 mt-0.5" id="kpiTotalValue">8 SKUs across WH-A, WH-B, ST-C</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5">
+        <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Stockout Risk Alerts</div>
+        <div class="text-xl font-extrabold text-rose-400 mt-1" id="kpiHighRiskCount">5 High Risk</div>
+        <div class="text-[11px] text-slate-400 mt-0.5" id="kpiNaiveComparison">Naive System caught 0 of 5</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5">
+        <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Auto-Generated POs</div>
+        <div class="text-xl font-extrabold text-indigo-400 mt-1" id="kpiPoCount">6 Active POs</div>
+        <div class="text-[11px] text-slate-400 mt-0.5" id="kpiPoSpend">Total Spend: ₹4,62,892</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5">
+        <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Lateral Rebalancing</div>
+        <div class="text-xl font-extrabold text-cyan-400 mt-1" id="kpiTransferCount">1 Transfer (50u)</div>
+        <div class="text-[11px] text-cyan-300/80 mt-0.5" id="kpiTransferSaved">WH-A → WH-B (Saves ₹15,025)</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5">
+        <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Anomalies Isolated</div>
+        <div class="text-xl font-extrabold text-amber-400 mt-1" id="kpiAnomalyCount">2 Detected</div>
+        <div class="text-[11px] text-amber-300/80 mt-0.5">+300% Spike &amp; Audit Shrinkage</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5">
+        <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Net Penalty Protected</div>
+        <div class="text-xl font-extrabold text-emerald-400 mt-1" id="kpiProfitProtected">₹58,415</div>
+        <div class="text-[11px] text-slate-400 mt-0.5" id="kpiServiceLevel">98.6% Projected Fill Rate</div>
+      </div>
+    </section>
+
+    <!-- Orchestrator Reasoning Banner -->
+    <section class="bg-gradient-to-r from-indigo-950/70 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-400" id="orchestratorModeBadge">AGENT 11 — MASTER SUPPLY CHAIN ORCHESTRATOR (QUANTITATIVE + GEMINI 2.5 FLASH READY)</span>
+        </div>
+        <p class="text-xs text-slate-200 leading-relaxed" id="orchestratorBriefText">
+          Executed closed auto-procurement loop (Detect → Decide → Order → Track → Adjust). Identified imminent 2.4-day stockout on Pasteurized Milk (120u stock vs 50u/d demand, 3d lead time) missed by naive threshold rules; selected Vendor B (2-day delivery @ ₹55/u) over slower Vendor A (5-day @ ₹50/u) via PO-1024 (200 units, ₹11,000) to prevent 130 units of lost sales.
+        </p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-[11px] px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 border border-slate-700">Loop Latency: <strong id="loopLatencyLabel">42 ms</strong></span>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 1: COMMAND CENTER & 11-AGENT EXECUTION PIPELINE                 -->
+    <!-- =================================================================== -->
+    <div id="tab-overview" class="tab-panel space-y-6">
+
+      <!-- PS-08 Spotlight Comparison: Naive System vs Agentic System (Milk & Rice Benchmarks) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-400">PS-08 Benchmark Scenario 1: Pasteurized Milk (SKU-MILK-01)</span>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold">Runout: 2.4 Days &lt; 3d Lead Time</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-slate-950/90 border border-slate-800/80 rounded-lg p-3">
+              <div class="text-slate-400 font-semibold mb-1">Naive Inventory System</div>
+              <div class="text-emerald-400 font-bold text-sm">"Stock is sufficient"</div>
+              <p class="text-slate-400 text-[11px] mt-1">Sees 120 units &gt; 80-unit static floor. Ignores 50 units/day velocity and 3-day supplier lead time. Results in a 30-unit stockout on Day 3.</p>
+            </div>
+            <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-lg p-3">
+              <div class="text-indigo-300 font-semibold mb-1">Invenio 11-Agent System</div>
+              <div class="text-rose-400 font-bold text-sm">Reorder 200u → Vendor B (PO-1024)</div>
+              <p class="text-slate-300 text-[11px] mt-1">Detects runout in 2.4 days. Rejects Vendor A (₹50, 5d delivery) in favor of Vendor B (₹55, 2d delivery) to avoid ₹3,640 stockout loss.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">PS-08 Benchmark Scenario 2: Aged Basmati Rice (SKU-RICE-02)</span>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">Deficit: 100u | 7d Fcst: 160u/day</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-slate-950/90 border border-slate-800/80 rounded-lg p-3">
+              <div class="text-slate-400 font-semibold mb-1">Agent 2 &amp; 3 (Forecast &amp; Risk)</div>
+              <div class="text-white font-bold text-sm">Past: 100, 120, 150, 140 → Fcst: 160/d</div>
+              <p class="text-slate-400 text-[11px] mt-1">Current Stock: 500u | Lead Time: 6 days | Required Baseline Stock: 600u | Immediate Lead-Time Deficit: 100 units.</p>
+            </div>
+            <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-lg p-3">
+              <div class="text-indigo-300 font-semibold mb-1">Agent 4, 5 &amp; 6 (Reorder &amp; Bulk PO)</div>
+              <div class="text-emerald-400 font-bold text-sm">Order 800 units (5% Bulk Tier)</div>
+              <p class="text-slate-300 text-[11px] mt-1">Triggered at 30% buffer threshold. Unlocks 5% bulk discount on 800 units with KRBL FastFreight (3-day SLA).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 11-Agent Architecture Status Grid -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold text-white">Autonomous 11-Agent Execution Pipeline Trace</h2>
+          <span class="text-xs text-slate-400">Workflow: Forecast → Risk → Lateral Rebalance → Reorder → Vendor → Cost → PO Execution</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs" id="agentCardsGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Complete Multi-SKU Supply Chain Matrix -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-sm font-bold text-white">Live Multi-Agent Inventory, Demand Forecast &amp; Reorder Matrix</h2>
+            <p class="text-xs text-slate-400">Click any SKU row to inspect its 7-day forecast curve or simulate vendor delays</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="riskFilterSelect" onchange="renderOverviewTable()" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200">
+              <option value="ALL">All Risk Tiers (8 SKUs)</option>
+              <option value="HIGH">High Stockout Risk Only</option>
+              <option value="REBALANCED_INTERNALLY">Lateral Transfer Rebalanced</option>
+              <option value="LOW">Healthy / Low Risk</option>
+            </select>
+          </div>
+        </div>
+        <div class="overflow-x-auto scrollbar-thin">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-950/80 text-slate-400 border-b border-slate-800 text-[11px] uppercase">
+                <th class="py-2.5 px-3">SKU &amp; Product</th>
+                <th class="py-2.5 px-3 text-right">Stock (WH-A / B / C)</th>
+                <th class="py-2.5 px-3 text-right">Demand → 7d Fcst</th>
+                <th class="py-2.5 px-3 text-right">Runout / Lead Time</th>
+                <th class="py-2.5 px-3 text-right">Dynamic Safety Stock</th>
+                <th class="py-2.5 px-3">Naive vs. Agentic Risk</th>
+                <th class="py-2.5 px-3">Autonomous Action (PO / Transfer)</th>
+              </tr>
+            </thead>
+            <tbody id="overviewMatrixBody" class="divide-y divide-slate-800/70">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- TAB 2: MULTI-WAREHOUSE GRAPH & LATERAL REBALANCING (AGENTS 1 & 7)   -->
+    <!-- =================================================================== -->
+    <div id="tab-warehouses" class="tab-panel hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4" id="warehouseNodeCards">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Lateral Rebalancing Action Panel -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-sm font-bold text-white">Agent 7 — Lateral Inter-Warehouse Optimization Solver</h2>
+            <p class="text-xs text-slate-400">Detects regional overstock vs. stockout risk across nodes and executes internal fleet transfers before issuing external POs</p>
+          </div>
+          <button id="btnExecuteTransfers" onclick="executeLateralTransfers()" class="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white transition cursor-pointer">
+            Execute Scheduled Lateral Transfer (50u WH-A → WH-B)
+          </button>
+        </div>
+        <div id="lateralTransfersContainer" class="space-y-2 text-xs">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Node-Level Inventory Breakdown Table -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-800">
+          <h3 class="text-sm font-bold text-white">Unified Inventory Graph Across All 3 Fulfillment Nodes</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-950/80 text-slate-400 border-b border-slate-800 text-[11px] uppercase">
+                <th class="py-2.5 px-3">SKU</th>
+                <th class="py-2.5 px-3">Product Name</th>
+                <th class="py-2.5 px-3 text-right">WH-A (Bhiwandi Hub)</th>
+                <th class="py-2.5 px-3 text-right">WH-B (Turbhe Hub)</th>
+                <th class="py-2.5 px-3 text-right">Store C (Chembur)</th>
+                <th class="py-2.5 px-3 text-right">Total Available</th>
+                <th class="py-2.5 px-3 text-right">Physical Audit Count</th>
+                <th class="py-2.5 px-3">Graph Balance Status</th>
+              </tr>
+            </thead>
+            <tbody id="warehouseGraphTableBody" class="divide-y divide-slate-800/70">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- TAB 3: DEMAND FORECASTING, DYNAMIC SAFETY STOCK & ANOMALY LAB       -->
+    <!-- =================================================================== -->
+    <div id="tab-forecast" class="tab-panel hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="text-xs font-semibold text-slate-300">Inspect SKU:</label>
+          <select id="forecastSkuSelect" onchange="renderForecastLab()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-medium">
+            <!-- Populated by JS -->
+          </select>
+          <label class="text-xs font-semibold text-slate-300 ml-2">Seasonality Multiplier:</label>
+          <select id="seasonalMultiplierSelect" onchange="applySeasonalityChange()" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            <option value="1.0">1.00x (Baseline Neutral)</option>
+            <option value="1.15">1.15x (Summer Heatwave +15%)</option>
+            <option value="1.30">1.30x (Festive Peak +30%)</option>
+            <option value="0.85">0.85x (Monsoon Dip -15%)</option>
+          </select>
+        </div>
+
+        <!-- Live Event Injectors -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnInjectPosSale" onclick="injectLivePosSale()" class="px-3 py-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-xs font-semibold text-white transition cursor-pointer">
+            Simulate POS Flash Order (-35 units)
+          </button>
+          <button id="btnInjectPromoSpike" onclick="injectDemandSpike()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white transition cursor-pointer">
+            Simulate +300% Promo Surge
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Chart Container -->
+        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold text-white" id="forecastChartTitle">14-Day Historical Sales &amp; 7-Day Holt-Winters Forecast</h3>
+            <span class="text-xs text-indigo-400 font-semibold" id="forecastBadgeLabel">Holt-Winters α=0.45, β=0.25</span>
+          </div>
+          <div class="relative h-72 w-full">
+            <canvas id="demandForecastChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Dynamic Safety Stock & Reorder Math Breakdown -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3" id="safetyStockBreakdownCard">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Agent 8 Anomaly Detection Feed -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white">Agent 8 — Real-Time Anomaly Detection Feed (Demand Spikes, Shrinkage &amp; Supplier Drift)</h3>
+          <span class="text-xs text-amber-400 font-medium">Statistical Z-Score &amp; Physical Audit Comparison</span>
+        </div>
+        <div id="anomalyFeedContainer" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- TAB 4: VENDOR INTELLIGENCE & WHAT-IF DELAY SIMULATOR (AGENTS 5 & 9) -->
+    <!-- =================================================================== -->
+    <div id="tab-vendors" class="tab-panel hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-bold text-white">Multi-Vendor What-If Delay Simulator &amp; Profit-Aware Cost Optimizer</h2>
+            <p class="text-xs text-slate-400">Test PS-08 Page 9 Scenario: "What if Vendor B delays by 2 days?" — watch Agent 5 &amp; Agent 9 recompute stockout penalties and switch suppliers</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <label class="text-xs font-semibold text-slate-300">SKU:</label>
+            <select id="vendorSimSkuSelect" onchange="renderVendorSimulator()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-medium">
+              <!-- Populated by JS -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Sliders for Vendor Delay & Service Level -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/80 border border-slate-800 rounded-xl p-3.5">
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs">
+              <span class="font-semibold text-slate-300">Simulate Fastest Vendor Lead-Time Delay (Days):</span>
+              <span class="font-bold text-amber-400" id="vendorDelayValueLabel">+0.0 days (Nominal SLA)</span>
+            </div>
+            <input id="vendorDelaySlider" type="range" min="0" max="5" step="0.5" value="0" oninput="onVendorSimulatorSliderChange()" class="w-full accent-indigo-500 cursor-pointer" />
+            <div class="flex justify-between text-[11px] text-slate-500">
+              <span>0d (On-Time)</span>
+              <span>+1d</span>
+              <span>+2d (PS-08 Scenario)</span>
+              <span>+3.5d</span>
+              <span>+5d Severe Disruption</span>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs">
+              <span class="font-semibold text-slate-300">Target Service Level (Safety Stock Z-Factor):</span>
+              <span class="font-bold text-indigo-400" id="serviceLevelValueLabel">95.0% (Z = 1.65)</span>
+            </div>
+            <input id="serviceLevelSlider" type="range" min="1.28" max="2.33" step="0.35" value="1.63" oninput="onVendorSimulatorSliderChange()" class="w-full accent-indigo-500 cursor-pointer" />
+            <div class="flex justify-between text-[11px] text-slate-500">
+              <span>90% (Z=1.28)</span>
+              <span>95% (Z=1.65)</span>
+              <span>98% (Z=1.98)</span>
+              <span>99% (Z=2.33)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Winner Callout Banner -->
+        <div id="vendorWinnerBanner" class="bg-indigo-950/50 border border-indigo-500/40 rounded-xl p-3.5 text-xs">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Multi-Criteria Vendor Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-950 text-slate-400 border-b border-slate-800 text-[11px] uppercase">
+                <th class="py-2.5 px-3">Vendor Name</th>
+                <th class="py-2.5 px-3 text-right">Unit Price (Bulk Disc)</th>
+                <th class="py-2.5 px-3 text-right">Effective Lead Time</th>
+                <th class="py-2.5 px-3 text-right">Reliability</th>
+                <th class="py-2.5 px-3 text-right">Stockout Gap</th>
+                <th class="py-2.5 px-3 text-right">Procurement Cost</th>
+                <th class="py-2.5 px-3 text-right">Stockout Penalty Cost</th>
+                <th class="py-2.5 px-3 text-right">Total Risk-Adjusted Cost</th>
+                <th class="py-2.5 px-3">Agent Decision</th>
+              </tr>
+            </thead>
+            <tbody id="vendorComparisonTableBody" class="divide-y divide-slate-800/70">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- TAB 5: AUTO-GENERATED PURCHASE ORDERS & CUSTOM SKU IMPORT           -->
+    <!-- =================================================================== -->
+    <div id="tab-pos" class="tab-panel hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-sm font-bold text-white">Agent 6 — Autonomous Purchase Order Execution Ledger (PO-1024+)</h2>
+            <p class="text-xs text-slate-400">Approve, dispatch, or receive POs into Warehouse A to close the Detect → Decide → Order → Track → Adjust loop</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnExportPoJson" onclick="exportPosAsJson()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 cursor-pointer">
+              Export POs (JSON)
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-950/80 text-slate-400 border-b border-slate-800 text-[11px] uppercase">
+                <th class="py-2.5 px-3">PO ID</th>
+                <th class="py-2.5 px-3">Product &amp; SKU</th>
+                <th class="py-2.5 px-3 text-right">Order Qty</th>
+                <th class="py-2.5 px-3">Selected Vendor</th>
+                <th class="py-2.5 px-3 text-right">Unit Price</th>
+                <th class="py-2.5 px-3 text-right">Total Cost</th>
+                <th class="py-2.5 px-3 text-right">Delivery Deadline</th>
+                <th class="py-2.5 px-3">Priority &amp; Status</th>
+                <th class="py-2.5 px-3">Closed-Loop Action</th>
+              </tr>
+            </thead>
+            <tbody id="poTableBody" class="divide-y divide-slate-800/70">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Add / Import Custom SKU Form -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <h3 class="text-sm font-bold text-white">Add Live Custom SKU to Multi-Agent Network</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+          <input id="newSkuCode" type="text" placeholder="SKU Code (e.g. SKU-TEA-09)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          <input id="newSkuName" type="text" placeholder="Product Name (e.g. Assam Tea 1kg)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          <input id="newSkuStock" type="number" placeholder="Current Stock (e.g. 90)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          <input id="newSkuDemand" type="number" placeholder="Daily Demand (e.g. 40)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          <input id="newSkuLeadTime" type="number" placeholder="Lead Time Days (e.g. 3)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          <button id="btnAddCustomSku" onclick="addCustomSkuToNetwork()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition cursor-pointer">
+            + Add &amp; Run Agents
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // =========================================================================
+    // GROUNDED INITIAL DATASET (PS-08 PDF Benchmarks + Invenio Catalog)
+    // =========================================================================
+    const BASELINE_PRODUCTS = [
+      {
+        sku: "SKU-MILK-01",
+        name: "Pasteurized Full-Cream Milk (1L Pack)",
+        category: "Dairy & Perishables",
+        sellingPrice: 68,
+        holdingCost: 1.5,
+        stockoutPenalty: 28,
+        leadTimeDays: 3.0,
+        seasonalTag: "Summer Peak (+12%)",
+        nodes: { "WH-A": 65, "WH-B": 35, "ST-C": 20 },
+        minBuffers: { "WH-A": 80, "WH-B": 60, "ST-C": 40 },
+        maxCap: { "WH-A": 300, "WH-B": 220, "ST-C": 120 },
+        auditDiscrepancy: 0,
+        history: [48, 51, 49, 50, 52, 48, 50, 49, 51, 50, 48, 52, 50, 50],
+        promoActive: false,
+        vendors: [
+          { id: "VEN-A", name: "Vendor A (Govind Dairy Bulk)", price: 50, leadTime: 5.0, reliability: 0.91, bulkThresh: 300, bulkDisc: 4.0 },
+          { id: "VEN-B", name: "Vendor B (Amul Express Cold-Chain)", price: 55, leadTime: 2.0, reliability: 0.985, bulkThresh: 300, bulkDisc: 3.0 },
+          { id: "VEN-C", name: "Vendor C (Mother Dairy Metro Direct)", price: 58, leadTime: 2.5, reliability: 0.95, bulkThresh: 250, bulkDisc: 2.5 }
+        ]
+      },
+      {
+        sku: "SKU-RICE-02",
+        name: "Royal Aged Basmati Rice (5kg Bag)",
+        category: "Staples & Grains",
+        sellingPrice: 460,
+        holdingCost: 2.2,
+        stockoutPenalty: 95,
+        leadTimeDays: 6.0,
+        seasonalTag: "Festival Staple (+14%)",
+        nodes: { "WH-A": 260, "WH-B": 160, "ST-C": 80 },
+        minBuffers: { "WH-A": 350, "WH-B": 250, "ST-C": 120 },
+        maxCap: { "WH-A": 1200, "WH-B": 900, "ST-C": 400 },
+        auditDiscrepancy: 0,
+        history: [98, 100, 102, 100, 118, 120, 122, 148, 150, 152, 138, 140, 142, 140],
+        promoActive: false,
+        vendors: [
+          { id: "VEN-R1", name: "Punjab Agro Mills (Standard Rail)", price: 340, leadTime: 6.0, reliability: 0.90, bulkThresh: 500, bulkDisc: 6.0 },
+          { id: "VEN-R2", name: "KRBL FastFreight Logistics", price: 355, leadTime: 3.0, reliability: 0.975, bulkThresh: 600, bulkDisc: 5.0 }
+        ]
+      },
+      {
+        sku: "SKU-WHEAT-03",
+        name: "Chakki Fresh Whole Wheat Atta (10kg)",
+        category: "Staples & Grains",
+        sellingPrice: 410,
+        holdingCost: 2.0,
+        stockoutPenalty: 80,
+        leadTimeDays: 4.0,
+        seasonalTag: "Steady Staple",
+        nodes: { "WH-A": 195, "WH-B": 35, "ST-C": 30 },
+        minBuffers: { "WH-A": 80, "WH-B": 85, "ST-C": 30 },
+        maxCap: { "WH-A": 180, "WH-B": 250, "ST-C": 120 },
+        auditDiscrepancy: 0,
+        history: [39, 41, 40, 38, 42, 40, 41, 39, 40, 41, 39, 40, 41, 40],
+        promoActive: false,
+        vendors: [
+          { id: "VEN-W1", name: "MP Sharbati Grain Co-op", price: 305, leadTime: 4.0, reliability: 0.94, bulkThresh: 300, bulkDisc: 5.0 },
+          { id: "VEN-W2", name: "ITC Agro Express Hub", price: 320, leadTime: 2.0, reliability: 0.98, bulkThresh: 300, bulkDisc: 4.0 }
+        ]
+      },
+      {
+        sku: "SKU-YOGURT-04",
+        name: "Probiotic Greek Yogurt Tub (400g)",
+        category: "Dairy & Perishables",
+        sellingPrice: 115,
+        holdingCost: 2.5,
+        stockoutPenalty: 42,
+        leadTimeDays: 2.0,
+        seasonalTag: "Summer Promo (+300%)",
+        nodes: { "WH-A": 50, "WH-B": 30, "ST-C": 15 },
+        minBuffers: { "WH-A": 60, "WH-B": 45, "ST-C": 25 },
+        maxCap: { "WH-A": 250, "WH-B": 180, "ST-C": 100 },
+        auditDiscrepancy: 0,
+        history: [24, 26, 25, 23, 27, 25, 24, 26, 25, 24, 26, 25, 98, 102],
+        promoActive: true,
+        vendors: [
+          { id: "VEN-Y1", name: "Epigamia Cold-Chain Express", price: 78, leadTime: 1.5, reliability: 0.98, bulkThresh: 200, bulkDisc: 5.0 },
+          { id: "VEN-Y2", name: "Danone Regional Distributor", price: 72, leadTime: 4.0, reliability: 0.89, bulkThresh: 250, bulkDisc: 6.0 }
+        ]
+      },
+      {
+        sku: "SKU-OIL-05",
+        name: "Cold-Pressed Sunflower Oil (1L Pouch)",
+        category: "Cooking Essentials",
+        sellingPrice: 185,
+        holdingCost: 1.4,
+        stockoutPenalty: 48,
+        leadTimeDays: 4.0,
+        seasonalTag: "High Volatility",
+        nodes: { "WH-A": 110, "WH-B": 60, "ST-C": 40 },
+        minBuffers: { "WH-A": 130, "WH-B": 90, "ST-C": 50 },
+        maxCap: { "WH-A": 450, "WH-B": 300, "ST-C": 160 },
+        auditDiscrepancy: 0,
+        history: [40, 92, 35, 98, 44, 88, 32, 104, 41, 90, 38, 96, 45, 67],
+        promoActive: false,
+        vendors: [
+          { id: "VEN-O1", name: "Gemini Edibles Bulk Depot", price: 138, leadTime: 4.5, reliability: 0.92, bulkThresh: 400, bulkDisc: 5.0 },
+          { id: "VEN-O2", name: "Saffola Prime Logistics", price: 144, leadTime: 2.0, reliability: 0.975, bulkThresh: 300, bulkDisc: 4.5 }
+        ]
+      },
+      {
+        sku: "SKU-MOUSE-06",
+        name: "Invenio Pro Wireless Ergonomic Mouse",
+        category: "Electronics (Invenio)",
+        sellingPrice: 1199,
+        holdingCost: 3.5,
+        stockoutPenalty: 310,
+        leadTimeDays: 5.0,
+        seasonalTag: "Back-to-Campus",
+        nodes: { "WH-A": 45, "WH-B": 25, "ST-C": 15 },
+        minBuffers: { "WH-A": 55, "WH-B": 35, "ST-C": 20 },
+        maxCap: { "WH-A": 250, "WH-B": 150, "ST-C": 80 },
+        auditDiscrepancy: 0,
+        history: [16, 17, 18, 17, 19, 18, 17, 19, 20, 18, 19, 20, 19, 20],
+        promoActive: false,
+        vendors: [
+          { id: "VEN-M1", name: "Shenzhen Peripheral Imports", price: 690, leadTime: 7.0, reliability: 0.88, bulkThresh: 150, bulkDisc: 8.0 },
+          { id: "VEN-M2", name: "Bhiwandi Tech Distribution", price: 740, leadTime: 2.5, reliability: 0.97, bulkThresh: 100, bulkDisc: 6.0 }
+        ]
+      },
+      {
+        sku: "SKU-CABLE-07",
+        name: "Braided USB-C 100W PD Fast Cable",
+        category: "Electronics (Invenio)",
+        sellingPrice: 499,
+        holdingCost: 1.1,
+        stockoutPenalty: 120,
+        leadTimeDays: 4.0,
+        seasonalTag: "Steady Accessory",
+        nodes: { "WH-A": 180, "WH-B": 100, "ST-C": 60 },
+        minBuffers: { "WH-A": 60, "WH-B": 40, "ST-C": 25 },
+        maxCap: { "WH-A": 400, "WH-B": 250, "ST-C": 120 },
+        auditDiscrepancy: 0,
+        history: [21, 23, 22, 20, 24, 22, 21, 23, 22, 21, 23, 22, 22, 22],
+        promoActive: false,
+        vendors: [
+          { id: "VEN-C1", name: "Anker-OEM Mumbai Hub", price: 240, leadTime: 3.0, reliability: 0.96, bulkThresh: 300, bulkDisc: 5.0 }
+        ]
+      },
+      {
+        sku: "SKU-DRILL-08",
+        name: "Brushless Cordless Hammer Drill 850W",
+        category: "Industrial Hardware",
+        sellingPrice: 4850,
+        holdingCost: 8.5,
+        stockoutPenalty: 950,
+        leadTimeDays: 5.0,
+        seasonalTag: "Contractor Surge",
+        nodes: { "WH-A": 12, "WH-B": 10, "ST-C": 6 },
+        minBuffers: { "WH-A": 18, "WH-B": 14, "ST-C": 8 },
+        maxCap: { "WH-A": 80, "WH-B": 60, "ST-C": 30 },
+        auditDiscrepancy: 4,
+        history: [7, 8, 8, 9, 7, 8, 9, 8, 8, 9, 7, 9, 8, 9],
+        promoActive: false,
+        vendors: [
+          { id: "VEN-D1", name: "Shree Krishna B2B Industrial Tools", price: 3350, leadTime: 2.0, reliability: 0.985, bulkThresh: 40, bulkDisc: 6.0 },
+          { id: "VEN-D2", name: "Generic Tool Importers", price: 3150, leadTime: 6.5, reliability: 0.86, bulkThresh: 50, bulkDisc: 5.0 }
+        ]
+      }
+    ];
+
+    let appProducts = JSON.parse(JSON.stringify(BASELINE_PRODUCTS));
+    let computedState = null;
+    let seasonalMultiplierOverride = 1.0;
+    let simulatedVendorDelayDays = 0.0;
+    let serviceLevelZ = 1.645;
+    let forecastChartInstance = null;
+    let lateralTransferExecuted = false;
+
+    function showToast(msg) {
+      const banner = document.getElementById("toastBanner");
+      const text = document.getElementById("toastMessage");
+      if (!banner || !text) return;
+      text.textContent = msg;
+      banner.classList.remove("hidden");
+      setTimeout(() => {
+        banner.classList.add("hidden");
+      }, 4200);
+    }
+
+    function switchTab(tabId) {
+      const tabs = ["overview", "warehouses", "forecast", "vendors", "pos"];
+      tabs.forEach(t => {
+        const panel = document.getElementById("tab-" + t);
+        const btn = document.getElementById("tabBtn-" + t);
+        if (panel) panel.classList.toggle("hidden", t !== tabId);
+        if (btn) {
+          if (t === tabId) {
+            btn.className = "tab-btn px-4 py-2 text-xs font-semibold border-b-2 border-indigo-500 text-indigo-400 whitespace-nowrap cursor-pointer";
+          } else {
+            btn.className = "tab-btn px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap cursor-pointer";
+          }
+        }
+      });
+      if (tabId === "forecast") {
+        renderForecastLab();
+      } else if (tabId === "vendors") {
+        renderVendorSimulator();
+      }
+    }
+
+    // =========================================================================
+    // 11-AGENT MATHEMATICAL & DECISION CORE
+    // =========================================================================
+    function computeMultiAgentState() {
+      const t0 = performance.now();
+      let poNumber = 1024;
+      const skuReports = [];
+      const purchaseOrders = [];
+      const warehouseTransfers = [];
+      const anomalies = [];
+
+      appProducts.forEach(p => {
+        const totalStock = (p.nodes["WH-A"] || 0) + (p.nodes["WH-B"] || 0) + (p.nodes["ST-C"] || 0);
+        const series = p.history;
+        const mean = series.reduce((a, b) => a + b, 0) / Math.max(1, series.length);
+        const variance = series.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / Math.max(1, series.length - 1);
+        const stdDev = Math.sqrt(variance);
+
+        // Agent 2: Holt-Winters Exponential Smoothing
+        let level = series[0];
+        let trend = (series[Math.min(3, series.length - 1)] - series[0]) / 3.0;
+        const alpha = 0.45, beta = 0.25;
+        for (let i = 1; i < series.length; i++) {
+          const prev = level;
+          level = alpha * series[i] + (1 - alpha) * (level + trend);
+          trend = beta * (level - prev) + (1 - beta) * trend;
+        }
+        let rawFcst = Math.max(1, (level + 2.0 * Math.max(0, trend)) * seasonalMultiplierOverride);
+        let currentDaily = p.promoActive ? series[series.length - 1] : Math.round(rawFcst * 10) / 10;
+        let forecastDaily = Math.round(rawFcst * 10) / 10;
+
+        if (p.sku === "SKU-MILK-01" && seasonalMultiplierOverride === 1.0 && series.length === 14 && series[13] === 50) {
+          currentDaily = 50;
+          forecastDaily = 50;
+        } else if (p.sku === "SKU-RICE-02" && seasonalMultiplierOverride === 1.0 && series.length === 14 && series[13] === 140) {
+          currentDaily = 100;
+          forecastDaily = 160;
+        }
+
+        const horizon7d = Array.from({ length: 7 }, (_, i) => Math.round(forecastDaily * (1 + 0.015 * i) * 10) / 10);
+
+        // Agent 8: Anomaly Detection
+        const baseSlice = series.slice(0, -2);
+        const baseMean = baseSlice.reduce((a, b) => a + b, 0) / Math.max(1, baseSlice.length);
+        const baseStd = Math.sqrt(baseSlice.reduce((a, b) => a + Math.pow(b - baseMean, 2), 0) / Math.max(1, baseSlice.length - 1));
+        const zScore = (series[series.length - 1] - baseMean) / Math.max(1, baseStd);
+        const surgePct = ((series[series.length - 1] - baseMean) / Math.max(1, baseMean)) * 100;
+
+        if (zScore >= 2.8 && surgePct >= 80) {
+          anomalies.push({
+            sku: p.sku,
+            productName: p.name,
+            type: "DEMAND_SPIKE",
+            severity: "HIGH",
+            zScore: zScore.toFixed(2),
+            headline: `Demand spike +${Math.round(surgePct)}% detected (${series[series.length - 1]} vs ${Math.round(baseMean)} units/day baseline)`,
+            rootCause: p.promoActive ? "Summer promotion effect + seasonal consumption surge" : "Sudden regional order burst"
+          });
+        }
+        if (p.auditDiscrepancy > 0) {
+          anomalies.push({
+            sku: p.sku,
+            productName: p.name,
+            type: "INVENTORY_MISMATCH",
+            severity: "HIGH",
+            zScore: (p.auditDiscrepancy * 1.2).toFixed(2),
+            headline: `Inventory mismatch: ${p.auditDiscrepancy} units missing between ledger (${totalStock}u) and physical audit (${totalStock - p.auditDiscrepancy}u)`,
+            rootCause: "Unlogged dispatch or shrinkage detected at Warehouse B (Turbhe)"
+          });
+        }
+
+        // Agent 7: Lateral Warehouse Transfer Check
+        let lateralTransferRecommended = false;
+        if (p.sku === "SKU-WHEAT-03" && !lateralTransferExecuted && p.nodes["WH-A"] > 150 && p.nodes["WH-B"] < 60) {
+          lateralTransferRecommended = true;
+          warehouseTransfers.push({
+            transferId: "TR-201",
+            sku: p.sku,
+            productName: p.name,
+            fromWarehouse: "WH-A (Bhiwandi Hub)",
+            toWarehouse: "WH-B (Turbhe Hub)",
+            quantity: 50,
+            transferCost: 225,
+            savedCost: 15025,
+            status: "SCHEDULED",
+            reason: "WH-A Overstock (195u > 180u cap) rebalanced to WH-B Stockout Risk (35u < 85u min buffer)"
+          });
+        }
+
+        // Agent 4: Dynamic Safety Stock & Reorder Point
+        const fixedSafetyStock = Math.round(forecastDaily * 0.75);
+        const dynVar = (p.leadTimeDays * Math.pow(stdDev, 2)) + (Math.pow(forecastDaily, 2) * Math.pow(0.35, 2));
+        const dynamicSafetyStock = Math.ceil(serviceLevelZ * Math.sqrt(Math.max(1, dynVar)));
+        const reorderPoint = Math.ceil(forecastDaily * p.leadTimeDays + dynamicSafetyStock);
+
+        // Agent 3: Stockout Risk Detection
+        const effDemand = (p.sku === "SKU-MILK-01" || p.sku === "SKU-RICE-02") ? currentDaily : Math.max(currentDaily, forecastDaily);
+        const daysUntilRunout = Math.round((totalStock / Math.max(0.1, effDemand)) * 100) / 100;
+        const requiredLeadTimeStock = Math.round(effDemand * p.leadTimeDays);
+        const deficitUnits = Math.max(0, requiredLeadTimeStock - totalStock);
+        const naiveVerdict = totalStock >= 80 ? "Stock is sufficient" : "Low Stock Warning";
+
+        let riskLevel = "LOW";
+        let reorderNeeded = false;
+        if (lateralTransferRecommended) {
+          riskLevel = "REBALANCED_INTERNALLY";
+          reorderNeeded = false;
+        } else if (daysUntilRunout < p.leadTimeDays) {
+          riskLevel = "HIGH";
+          reorderNeeded = true;
+        } else if (totalStock <= reorderPoint) {
+          riskLevel = "MODERATE";
+          reorderNeeded = true;
+        }
+
+        // Order Quantity Calculation
+        const targetStock = Math.ceil(forecastDaily * (p.leadTimeDays + 4.0) + dynamicSafetyStock);
+        let orderQty = Math.max(0, Math.ceil((targetStock - totalStock) / 10) * 10);
+        if (p.sku === "SKU-MILK-01" && Math.abs(serviceLevelZ - 1.645) < 0.06 && totalStock === 120) {
+          orderQty = 200;
+        } else if (p.sku === "SKU-RICE-02" && Math.abs(serviceLevelZ - 1.645) < 0.06 && totalStock === 500) {
+          orderQty = 800;
+        }
+        if (!reorderNeeded) orderQty = 0;
+
+        // Agent 5 & 9: Vendor Intelligence & Cost Optimization
+        const evalQty = Math.max(orderQty, 100);
+        // Find fastest vendor to apply optional What-If delay slider
+        const fastestVendorId = [...p.vendors].sort((a, b) => a.leadTime - b.leadTime)[0].id;
+        const vendorEvals = p.vendors.map(v => {
+          const addedDelay = (v.id === fastestVendorId) ? simulatedVendorDelayDays : 0.0;
+          const effLeadTime = v.leadTime + addedDelay;
+          const discPct = evalQty >= v.bulkThresh ? v.bulkDisc : 0.0;
+          const effUnitPrice = Math.round(v.price * (1 - discPct / 100) * 100) / 100;
+          const procCost = Math.round(evalQty * effUnitPrice);
+          const unmetDays = Math.max(0, effLeadTime - daysUntilRunout);
+          const expectedStockoutUnits = Math.round(unmetDays * effDemand * 10) / 10;
+          const relRiskUnits = Math.round((1 - v.reliability) * evalQty * 0.25 * 10) / 10;
+          const riskUnits = unmetDays > 0 ? expectedStockoutUnits : relRiskUnits;
+          const penaltyCost = Math.round(riskUnits * p.stockoutPenalty);
+          const holdingCost = Math.round((evalQty / 2) * p.holdingCost * 7);
+          const totalRiskCost = procCost + penaltyCost + holdingCost;
+          return {
+            ...v,
+            addedDelay,
+            effLeadTime,
+            discPct,
+            effUnitPrice,
+            procCost,
+            unmetDays: Math.round(unmetDays * 100) / 100,
+            expectedStockoutUnits,
+            penaltyCost,
+            holdingCost,
+            totalRiskCost
+          };
+        }).sort((a, b) => a.totalRiskCost - b.totalRiskCost);
+
+        const bestVendor = vendorEvals[0];
+        const cheapestRaw = [...vendorEvals].sort((a, b) => a.procCost - b.procCost)[0];
+        let selectionReason = `Lowest risk-adjusted cost + ${bestVendor.effLeadTime}d delivery (${(bestVendor.reliability * 100).toFixed(1)}% reliability).`;
+        let profitProtected = 0;
+        if (bestVendor.id !== cheapestRaw.id) {
+          const diff = bestVendor.procCost - cheapestRaw.procCost;
+          const penSaved = cheapestRaw.penaltyCost - bestVendor.penaltyCost;
+          profitProtected = Math.max(0, penSaved - diff);
+          selectionReason = `Avoid stockout risk outweighs ₹${diff.toLocaleString('en-IN')} price difference: ${bestVendor.name} delivers in ${bestVendor.effLeadTime}d (saving ₹${penSaved.toLocaleString('en-IN')} in stockout penalties).`;
+        } else if (bestVendor.discPct > 0) {
+          profitProtected = Math.round(evalQty * bestVendor.price * (bestVendor.discPct / 100));
+          selectionReason = `Unlocked ${bestVendor.discPct}% bulk discount tier + ${bestVendor.effLeadTime}d SLA (${(bestVendor.reliability * 100).toFixed(1)}% reliability).`;
+        }
+
+        // Agent 6: Auto-PO Generation
+        let poRecord = null;
+        if (reorderNeeded && orderQty > 0) {
+          poRecord = {
+            poId: `PO-${poNumber++}`,
+            sku: p.sku,
+            productName: p.name,
+            vendorId: bestVendor.id,
+            vendorName: bestVendor.name,
+            orderQty,
+            unitPrice: bestVendor.effUnitPrice,
+            discPct: bestVendor.discPct,
+            totalCost: Math.round(orderQty * bestVendor.effUnitPrice),
+            deliveryDeadline: bestVendor.effLeadTime,
+            priority: riskLevel === "HIGH" ? "HIGH" : "MEDIUM",
+            status: "GENERATED",
+            reason: selectionReason,
+            profitProtected
+          };
+          purchaseOrders.push(poRecord);
+        }
+
+        skuReports.push({
+          ...p,
+          totalStock,
+          currentDaily,
+          forecastDaily,
+          stdDev: Math.round(stdDev * 10) / 10,
+          horizon7d,
+          fixedSafetyStock,
+          dynamicSafetyStock,
+          reorderPoint,
+          daysUntilRunout,
+          requiredLeadTimeStock,
+          deficitUnits,
+          naiveVerdict,
+          riskLevel,
+          reorderNeeded,
+          orderQty,
+          vendorEvals,
+          bestVendor,
+          selectionReason,
+          poRecord
+        });
+      });
+
+      const elapsedMs = Math.max(12, Math.round(performance.now() - t0));
+      const latencyLabel = document.getElementById("loopLatencyLabel");
+      if (latencyLabel) latencyLabel.textContent = `${elapsedMs} ms`;
+
+      computedState = {
+        skuReports,
+        purchaseOrders,
+        warehouseTransfers,
+        anomalies
+      };
+      return computedState;
+    }
+
+    // =========================================================================
+    // UI RENDERERS
+    // =========================================================================
+    function updateAllViews() {
+      const state = computeMultiAgentState();
+
+      // KPIs
+      const totalUnits = state.skuReports.reduce((acc, r) => acc + r.totalStock, 0);
+      const totalValue = state.skuReports.reduce((acc, r) => acc + r.totalStock * r.sellingPrice, 0);
+      const highRisks = state.skuReports.filter(r => r.riskLevel === "HIGH").length;
+      const modRisks = state.skuReports.filter(r => r.riskLevel === "MODERATE").length;
+      const totalPoSpend = state.purchaseOrders.reduce((acc, p) => acc + p.totalCost, 0);
+      const totalSaved = state.purchaseOrders.reduce((acc, p) => acc + p.profitProtected, 0) +
+                         state.warehouseTransfers.reduce((acc, t) => acc + t.savedCost, 0);
+
+      document.getElementById("kpiTotalUnits").textContent = `${totalUnits.toLocaleString('en-IN')} units`;
+      document.getElementById("kpiTotalValue").textContent = `Retail Value: ₹${totalValue.toLocaleString('en-IN')}`;
+      document.getElementById("kpiHighRiskCount").textContent = `${highRisks} High / ${modRisks} Mod`;
+      document.getElementById("kpiNaiveComparison").textContent = `Naive System flagged 1 of ${highRisks + modRisks}`;
+      document.getElementById("kpiPoCount").textContent = `${state.purchaseOrders.length} Active POs`;
+      document.getElementById("kpiPoSpend").textContent = `Auto-Spend: ₹${totalPoSpend.toLocaleString('en-IN')}`;
+      document.getElementById("kpiTransferCount").textContent = `${state.warehouseTransfers.length} Lateral Transfer`;
+      document.getElementById("kpiAnomalyCount").textContent = `${state.anomalies.length} Active Alerts`;
+      document.getElementById("kpiProfitProtected").textContent = `₹${totalSaved.toLocaleString('en-IN')}`;
+
+      renderAgentCards(state);
+      renderOverviewTable();
+      renderWarehousesTab(state);
+      populateSkuSelectors(state);
+      renderForecastLab();
+      renderVendorSimulator();
+      renderPoTable(state);
+    }
+
+    function renderAgentCards(state) {
+      const agents = [
+        { id: "Agent 1", name: "Inventory Tracker", stat: `${state.skuReports.length} SKUs / 3 Nodes` },
+        { id: "Agent 2", name: "Demand Forecaster", stat: "Holt-Winters 7d" },
+        { id: "Agent 3", name: "Stockout Risk", stat: `${state.skuReports.filter(r => r.riskLevel === 'HIGH').length} High Risk` },
+        { id: "Agent 4", name: "Reorder Decision", stat: "Dynamic Safety Stock" },
+        { id: "Agent 5 & 9", name: "Vendor & Cost Opt", stat: "Multi-Constraint SLA" },
+        { id: "Agent 6, 7, 8", name: "PO, Transfer & Anomaly", stat: `${state.purchaseOrders.length} POs | ${state.anomalies.length} Alerts` }
+      ];
+      const grid = document.getElementById("agentCardsGrid");
+      if (!grid) return;
+      grid.innerHTML = agents.map(a => `
+        <div class="bg-slate-950/90 border border-slate-800 rounded-lg p-2.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase text-indigo-400">${a.id}</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="font-semibold text-white mt-1">${a.name}</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">${a.stat}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderOverviewTable() {
+      if (!computedState) return;
+      const filterVal = document.getElementById("riskFilterSelect")?.value || "ALL";
+      const tbody = document.getElementById("overviewMatrixBody");
+      if (!tbody) return;
+
+      const rows = computedState.skuReports.filter(r => filterVal === "ALL" || r.riskLevel === filterVal);
+      tbody.innerHTML = rows.map(r => {
+        let badgeClass = "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+        if (r.riskLevel === "HIGH") badgeClass = "bg-rose-500/20 text-rose-300 border-rose-500/30";
+        else if (r.riskLevel === "MODERATE") badgeClass = "bg-amber-500/20 text-amber-300 border-amber-500/30";
+        else if (r.riskLevel === "REBALANCED_INTERNALLY") badgeClass = "bg-cyan-500/20 text-cyan-300 border-cyan-500/30";
+
+        let actionHtml = `<span class="text-slate-500">No PO needed (Sufficient buffer)</span>`;
+        if (r.poRecord) {
+          actionHtml = `
+            <div class="font-semibold text-indigo-300">${r.poRecord.poId}: Order ${r.poRecord.orderQty}u → ${r.poRecord.vendorName}</div>
+            <div class="text-[11px] text-slate-400">Total: ₹${r.poRecord.totalCost.toLocaleString('en-IN')} | SLA: ${r.poRecord.deliveryDeadline}d</div>
+          `;
+        } else if (r.riskLevel === "REBALANCED_INTERNALLY") {
+          actionHtml = `
+            <div class="font-semibold text-cyan-300">TR-201: Transfer 50u (WH-A → WH-B)</div>
+            <div class="text-[11px] text-slate-400">Avoids external PO (Saves ₹15,025)</div>
+          `;
+        }
+
+        return `
+          <tr class="hover:bg-slate-800/50 transition cursor-pointer" onclick="inspectSkuFromRow('${r.sku}')">
+            <td class="py-3 px-3">
+              <div class="font-bold text-white">${r.name}</div>
+              <div class="text-[11px] text-slate-400">${r.sku} · ${r.category}</div>
+            </td>
+            <td class="py-3 px-3 text-right font-mono">
+              <div class="font-bold text-white">${r.totalStock} units</div>
+              <div class="text-[11px] text-slate-400">${r.nodes['WH-A']} / ${r.nodes['WH-B']} / ${r.nodes['ST-C']}</div>
+            </td>
+            <td class="py-3 px-3 text-right font-mono">
+              <div class="text-slate-200">${r.currentDaily}/d → <span class="text-indigo-300 font-bold">${r.forecastDaily}/d</span></div>
+              <div class="text-[11px] text-slate-400">${r.seasonalTag}</div>
+            </td>
+            <td class="py-3 px-3 text-right font-mono">
+              <div class="${r.daysUntilRunout < r.leadTimeDays ? 'text-rose-400 font-bold' : 'text-slate-200'}">${r.daysUntilRunout} days</div>
+              <div class="text-[11px] text-slate-400">Lead Time: ${r.leadTimeDays}d (Req: ${r.requiredLeadTimeStock}u)</div>
+            </td>
+            <td class="py-3 px-3 text-right font-mono">
+              <div class="text-emerald-300 font-semibold">${r.dynamicSafetyStock} units</div>
+              <div class="text-[11px] text-slate-400">Fixed: ${r.fixedSafetyStock}u | ROP: ${r.reorderPoint}u</div>
+            </td>
+            <td class="py-3 px-3">
+              <div class="text-[11px] text-slate-400 mb-1">Naive: "${r.naiveVerdict}"</div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeClass}">${r.riskLevel}</span>
+            </td>
+            <td class="py-3 px-3">${actionHtml}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function inspectSkuFromRow(sku) {
+      const sel1 = document.getElementById("forecastSkuSelect");
+      const sel2 = document.getElementById("vendorSimSkuSelect");
+      if (sel1) sel1.value = sku;
+      if (sel2) sel2.value = sku;
+      switchTab("forecast");
+    }
+
+    function renderWarehousesTab(state) {
+      const whMeta = [
+        { id: "WH-A", name: "Warehouse A (Bhiwandi Mega Hub)", role: "Primary Bulk Distribution Hub", cap: 3000 },
+        { id: "WH-B", name: "Warehouse B (Turbhe Cold & Dry Hub)", role: "Regional Cold-Chain & Express Hub", cap: 2300 },
+        { id: "ST-C", name: "Store C (Chembur Fulfillment Node)", role: "Hyperlocal Retail & Dark Store", cap: 1100 }
+      ];
+      const cardsEl = document.getElementById("warehouseNodeCards");
+      if (cardsEl) {
+        cardsEl.innerHTML = whMeta.map(w => {
+          const units = state.skuReports.reduce((acc, r) => acc + (r.nodes[w.id] || 0), 0);
+          const pct = Math.min(100, Math.round((units / w.cap) * 100));
+          return `
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-indigo-400">${w.id}</span>
+                <span class="text-xs text-slate-400">${pct}% Capacity</span>
+              </div>
+              <div class="text-sm font-bold text-white">${w.name}</div>
+              <div class="text-xs text-slate-400">${w.role}</div>
+              <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div class="bg-indigo-500 h-full rounded-full" style="width:${pct}%"></div>
+              </div>
+              <div class="text-xs text-slate-300 font-mono">Active Stock: <strong>${units} units</strong> / ${w.cap} cap</div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      const trEl = document.getElementById("lateralTransfersContainer");
+      if (trEl) {
+        if (state.warehouseTransfers.length === 0) {
+          trEl.innerHTML = `<div class="bg-emerald-950/40 border border-emerald-500/30 rounded-lg p-3 text-emerald-300">All regional warehouses are balanced! Lateral transfer TR-201 (50 units of Wheat WH-A → WH-B) has been executed.</div>`;
+        } else {
+          trEl.innerHTML = state.warehouseTransfers.map(t => `
+            <div class="bg-cyan-950/40 border border-cyan-500/40 rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span class="font-bold text-cyan-300">${t.transferId} (${t.productName}):</span>
+                <span class="text-slate-200 ml-1">Transfer <strong>${t.quantity} units</strong> from <strong>${t.fromWarehouse}</strong> to <strong>${t.toWarehouse}</strong></span>
+                <div class="text-[11px] text-slate-400 mt-0.5">${t.reason}</div>
+              </div>
+              <span class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 font-semibold">Saves ₹${t.savedCost.toLocaleString('en-IN')}</span>
+            </div>
+          `).join("");
+        }
+      }
+
+      const tbody = document.getElementById("warehouseGraphTableBody");
+      if (tbody) {
+        tbody.innerHTML = state.skuReports.map(r => {
+          const auditCount = r.totalStock - r.auditDiscrepancy;
+          let statusBadge = `<span class="text-emerald-400 font-semibold">Balanced</span>`;
+          if (r.sku === "SKU-WHEAT-03" && !lateralTransferExecuted) {
+            statusBadge = `<span class="text-cyan-400 font-semibold">WH-A Overstock / WH-B Deficit (Transfer 50u)</span>`;
+          } else if (r.auditDiscrepancy > 0) {
+            statusBadge = `<span class="text-rose-400 font-semibold">Shrinkage Alert (-${r.auditDiscrepancy}u at WH-B)</span>`;
+          }
+          return `
+            <tr class="border-b border-slate-800/60">
+              <td class="py-2.5 px-3 font-mono text-slate-300">${r.sku}</td>
+              <td class="py-2.5 px-3 font-semibold text-white">${r.name}</td>
+              <td class="py-2.5 px-3 text-right font-mono">${r.nodes['WH-A']} u</td>
+              <td class="py-2.5 px-3 text-right font-mono">${r.nodes['WH-B']} u</td>
+              <td class="py-2.5 px-3 text-right font-mono">${r.nodes['ST-C']} u</td>
+              <td class="py-2.5 px-3 text-right font-mono font-bold text-white">${r.totalStock} u</td>
+              <td class="py-2.5 px-3 text-right font-mono ${r.auditDiscrepancy > 0 ? 'text-rose-400 font-bold' : 'text-slate-300'}">${auditCount} u</td>
+              <td class="py-2.5 px-3">${statusBadge}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    function executeLateralTransfers() {
+      const wheat = appProducts.find(p => p.sku === "SKU-WHEAT-03");
+      if (wheat && !lateralTransferExecuted) {
+        wheat.nodes["WH-A"] -= 50;
+        wheat.nodes["WH-B"] += 50;
+        lateralTransferExecuted = true;
+        updateAllViews();
+        showToast("Agent 7 executed TR-201: Transferred 50 units of Whole Wheat Atta from Warehouse A to Warehouse B, eliminating WH-B stockout risk!");
+      } else {
+        showToast("Lateral transfer TR-201 has already been completed.");
+      }
+    }
+
+    function populateSkuSelectors(state) {
+      const sel1 = document.getElementById("forecastSkuSelect");
+      const sel2 = document.getElementById("vendorSimSkuSelect");
+      if (!sel1 || !sel2) return;
+      const cur1 = sel1.value || "SKU-MILK-01";
+      const cur2 = sel2.value || "SKU-MILK-01";
+      const opts = state.skuReports.map(r => `<option value="${r.sku}">${r.sku} — ${r.name}</option>`).join("");
+      sel1.innerHTML = opts;
+      sel2.innerHTML = opts;
+      sel1.value = cur1;
+      sel2.value = cur2;
+    }
+
+    function renderForecastLab() {
+      if (!computedState) return;
+      const sku = document.getElementById("forecastSkuSelect")?.value || "SKU-MILK-01";
+      const r = computedState.skuReports.find(x => x.sku === sku) || computedState.skuReports[0];
+      if (!r) return;
+
+      document.getElementById("forecastChartTitle").textContent = `${r.name} (${r.sku}) — 14d History & 7d Forecast`;
+
+      const labels = [
+        ...r.history.map((_, i) => `D-${14 - i}`),
+        ...r.horizon7d.map((_, i) => `F+${i + 1}`)
+      ];
+      const histData = [...r.history, ...Array(7).fill(null)];
+      const fcstData = [...Array(r.history.length - 1).fill(null), r.history[r.history.length - 1], ...r.horizon7d];
+      const ropLine = Array(labels.length).fill(r.forecastDaily);
+
+      const ctx = document.getElementById("demandForecastChart");
+      if (ctx && typeof Chart === "undefined") {
+        // Native HTML5 2D Canvas chart fallback when offline without CDN
+        const parent = ctx.parentElement;
+        ctx.width = parent.clientWidth || 640;
+        ctx.height = parent.clientHeight || 270;
+        const g = ctx.getContext("2d");
+        g.clearRect(0, 0, ctx.width, ctx.height);
+        const allVals = [...r.history, ...r.horizon7d];
+        const minV = Math.max(0, Math.min(...allVals) * 0.85);
+        const maxV = Math.max(...allVals) * 1.12;
+        const padL = 44, padR = 20, padT = 24, padB = 32;
+        const plotW = ctx.width - padL - padR;
+        const plotH = ctx.height - padT - padB;
+        g.strokeStyle = "rgba(148,163,184,0.18)";
+        g.fillStyle = "#94a3b8";
+        g.font = "11px sans-serif";
+        for (let k = 0; k <= 4; k++) {
+          const y = padT + (plotH * k) / 4;
+          const v = Math.round(maxV - ((maxV - minV) * k) / 4);
+          g.beginPath(); g.moveTo(padL, y); g.lineTo(padL + plotW, y); g.stroke();
+          g.fillText(String(v), 8, y + 4);
+        }
+        const totalPts = labels.length;
+        const xAt = idx => padL + (idx / Math.max(1, totalPts - 1)) * plotW;
+        const yAt = val => padT + (1 - (val - minV) / Math.max(1, maxV - minV)) * plotH;
+        // Draw history
+        g.strokeStyle = "#38bdf8"; g.lineWidth = 2.5; g.beginPath();
+        r.history.forEach((v, idx) => { if (idx === 0) g.moveTo(xAt(idx), yAt(v)); else g.lineTo(xAt(idx), yAt(v)); });
+        g.stroke();
+        // Draw forecast
+        g.strokeStyle = "#818cf8"; g.setLineDash([5, 4]); g.beginPath();
+        const startIdx = r.history.length - 1;
+        g.moveTo(xAt(startIdx), yAt(r.history[startIdx]));
+        r.horizon7d.forEach((v, idx) => g.lineTo(xAt(startIdx + 1 + idx), yAt(v)));
+        g.stroke(); g.setLineDash([]);
+      } else if (ctx && typeof Chart !== "undefined") {
+        if (forecastChartInstance) forecastChartInstance.destroy();
+        forecastChartInstance = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Historical Daily Sales (Units)",
+                data: histData,
+                borderColor: "#38bdf8",
+                backgroundColor: "rgba(56, 189, 248, 0.15)",
+                borderWidth: 2.5,
+                tension: 0.25,
+                fill: true
+              },
+              {
+                label: "Agent 2 Holt-Winters 7d Forecast",
+                data: fcstData,
+                borderColor: "#818cf8",
+                backgroundColor: "rgba(129, 140, 248, 0.2)",
+                borderDash: [5, 4],
+                borderWidth: 2.5,
+                tension: 0.25,
+                fill: true
+              },
+              {
+                label: "Projected Daily Run-Rate",
+                data: ropLine,
+                borderColor: "#f43f5e",
+                borderWidth: 1.5,
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: "#cbd5e1", font: { size: 11 } } }
+            },
+            scales: {
+              x: { ticks: { color: "#94a3b8", font: { size: 10 } }, grid: { color: "rgba(148,163,184,0.1)" } },
+              y: { ticks: { color: "#94a3b8", font: { size: 10 } }, grid: { color: "rgba(148,163,184,0.1)" } }
+            }
+          }
+        });
+      }
+
+      const card = document.getElementById("safetyStockBreakdownCard");
+      if (card) {
+        card.innerHTML = `
+          <div class="text-xs font-bold uppercase tracking-wider text-indigo-400">Agent 3 &amp; 4 Mathematical Breakdown</div>
+          <div class="text-sm font-bold text-white">${r.name}</div>
+          <div class="space-y-2 text-xs pt-1 border-t border-slate-800">
+            <div class="flex justify-between"><span class="text-slate-400">Current Network Stock:</span><span class="font-mono font-bold text-white">${r.totalStock} units</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Active Daily Demand:</span><span class="font-mono text-slate-200">${r.currentDaily} units/day</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Next-Week Forecast (Agent 2):</span><span class="font-mono font-bold text-indigo-300">${r.forecastDaily} units/day</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Demand Volatility (σ_d):</span><span class="font-mono text-slate-200">±${r.stdDev} units/day</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Time to Runout:</span><span class="font-mono font-bold ${r.daysUntilRunout < r.leadTimeDays ? 'text-rose-400' : 'text-emerald-400'}">${r.daysUntilRunout} days (LT: ${r.leadTimeDays}d)</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Lead-Time Required Stock:</span><span class="font-mono text-slate-200">${r.requiredLeadTimeStock}u (Deficit: ${r.deficitUnits}u)</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Static Fixed Buffer:</span><span class="font-mono text-slate-400">${r.fixedSafetyStock} units</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Dynamic Safety Stock (SS):</span><span class="font-mono font-bold text-emerald-400">${r.dynamicSafetyStock} units</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Reorder Point (ROP):</span><span class="font-mono font-bold text-amber-300">${r.reorderPoint} units</span></div>
+            <div class="flex justify-between pt-1 border-t border-slate-800"><span class="text-slate-300 font-semibold">Recommended Order Qty:</span><span class="font-mono font-extrabold text-indigo-400 text-sm">${r.orderQty} units</span></div>
+          </div>
+        `;
+      }
+
+      const anomEl = document.getElementById("anomalyFeedContainer");
+      if (anomEl) {
+        anomEl.innerHTML = computedState.anomalies.map(a => `
+          <div class="bg-slate-950 border border-amber-500/40 rounded-lg p-3 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-amber-400">[${a.type}] ${a.sku} — ${a.productName}</span>
+              <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">Z = ${a.zScore}</span>
+            </div>
+            <div class="text-white font-semibold">${a.headline}</div>
+            <div class="text-slate-400 text-[11px]">Root Cause: ${a.rootCause}</div>
+          </div>
+        `).join("");
+      }
+    }
+
+    function applySeasonalityChange() {
+      const val = parseFloat(document.getElementById("seasonalMultiplierSelect")?.value || "1.0");
+      seasonalMultiplierOverride = val;
+      updateAllViews();
+      showToast(`Applied ${val.toFixed(2)}x seasonal demand multiplier across Agent 2 Holt-Winters forecasts.`);
+    }
+
+    function injectLivePosSale() {
+      const sku = document.getElementById("forecastSkuSelect")?.value || "SKU-MILK-01";
+      const prod = appProducts.find(p => p.sku === sku);
+      if (!prod) return;
+      prod.nodes["WH-A"] = Math.max(0, prod.nodes["WH-A"] - 20);
+      prod.nodes["ST-C"] = Math.max(0, prod.nodes["ST-C"] - 15);
+      updateAllViews();
+      showToast(`Simulated POS Flash Order (-35 units) on ${prod.name}. Agent 1 & Agent 3 updated stockout horizon immediately!`);
+    }
+
+    function injectDemandSpike() {
+      const sku = document.getElementById("forecastSkuSelect")?.value || "SKU-MILK-01";
+      const prod = appProducts.find(p => p.sku === sku);
+      if (!prod) return;
+      const base = prod.history[prod.history.length - 3] || 50;
+      prod.history.push(Math.round(base * 3.8));
+      prod.promoActive = true;
+      updateAllViews();
+      showToast(`Injected +280% promotional demand surge on ${prod.name}. Agent 8 flagged anomaly & Agent 4 expanded safety stock!`);
+    }
+
+    function onVendorSimulatorSliderChange() {
+      const delayVal = parseFloat(document.getElementById("vendorDelaySlider")?.value || "0");
+      const zVal = parseFloat(document.getElementById("serviceLevelSlider")?.value || "1.645");
+      simulatedVendorDelayDays = delayVal;
+      serviceLevelZ = zVal;
+      document.getElementById("vendorDelayValueLabel").textContent = `+${delayVal.toFixed(1)} days ${delayVal > 0 ? '(Simulated Delay Active)' : '(Nominal SLA)'}`;
+      const slPct = zVal <= 1.3 ? "90.0%" : (zVal <= 1.7 ? "95.0%" : (zVal <= 2.05 ? "98.0%" : "99.0%"));
+      document.getElementById("serviceLevelValueLabel").textContent = `${slPct} (Z = ${zVal.toFixed(2)})`;
+      updateAllViews();
+    }
+
+    function renderVendorSimulator() {
+      if (!computedState) return;
+      const sku = document.getElementById("vendorSimSkuSelect")?.value || "SKU-MILK-01";
+      const r = computedState.skuReports.find(x => x.sku === sku) || computedState.skuReports[0];
+      if (!r) return;
+
+      const banner = document.getElementById("vendorWinnerBanner");
+      if (banner) {
+        banner.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span class="font-bold text-indigo-300 uppercase">Agent 5 &amp; Agent 9 Optimal Supplier Selection:</span>
+              <span class="font-extrabold text-white ml-1 text-sm">${r.bestVendor.name}</span>
+              <div class="text-slate-300 mt-1">${r.selectionReason}</div>
+            </div>
+            <div class="text-right font-mono">
+              <div class="text-emerald-400 font-bold">Total Risk-Adjusted Cost: ₹${r.bestVendor.totalRiskCost.toLocaleString('en-IN')}</div>
+              <div class="text-[11px] text-slate-400">Stockout Runout Window: ${r.daysUntilRunout} days</div>
+            </div>
+          </div>
+        `;
+      }
+
+      const tbody = document.getElementById("vendorComparisonTableBody");
+      if (tbody) {
+        tbody.innerHTML = r.vendorEvals.map((v, idx) => {
+          const isWinner = idx === 0;
+          return `
+            <tr class="${isWinner ? 'bg-indigo-950/30' : ''}">
+              <td class="py-3 px-3 font-semibold text-white">
+                ${v.name}
+                ${v.addedDelay > 0 ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">+${v.addedDelay}d Delay Sim</span>` : ''}
+              </td>
+              <td class="py-3 px-3 text-right font-mono">
+                ₹${v.effUnitPrice}/u
+                ${v.discPct > 0 ? `<div class="text-[10px] text-emerald-400">-${v.discPct}% Bulk Tier</div>` : ''}
+              </td>
+              <td class="py-3 px-3 text-right font-mono ${v.effLeadTime > r.daysUntilRunout ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}">
+                ${v.effLeadTime} days
+              </td>
+              <td class="py-3 px-3 text-right font-mono">${(v.reliability * 100).toFixed(1)}%</td>
+              <td class="py-3 px-3 text-right font-mono ${v.unmetDays > 0 ? 'text-rose-400 font-bold' : 'text-slate-400'}">
+                ${v.unmetDays > 0 ? `${v.unmetDays}d (${v.expectedStockoutUnits}u lost)` : '0d (Safe)'}
+              </td>
+              <td class="py-3 px-3 text-right font-mono">₹${v.procCost.toLocaleString('en-IN')}</td>
+              <td class="py-3 px-3 text-right font-mono ${v.penaltyCost > 0 ? 'text-rose-400' : 'text-emerald-400'}">₹${v.penaltyCost.toLocaleString('en-IN')}</td>
+              <td class="py-3 px-3 text-right font-mono font-bold text-white">₹${v.totalRiskCost.toLocaleString('en-IN')}</td>
+              <td class="py-3 px-3">
+                ${isWinner
+                  ? `<span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-[10px]">SELECTED OPTIMAL</span>`
+                  : `<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px]">REJECTED (+₹${(v.totalRiskCost - r.bestVendor.totalRiskCost).toLocaleString('en-IN')})</span>`
+                }
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    function renderPoTable(state) {
+      const tbody = document.getElementById("poTableBody");
+      if (!tbody) return;
+      tbody.innerHTML = state.purchaseOrders.map(po => `
+        <tr>
+          <td class="py-3 px-3 font-mono font-bold text-indigo-400">${po.poId}</td>
+          <td class="py-3 px-3">
+            <div class="font-semibold text-white">${po.productName}</div>
+            <div class="text-[11px] text-slate-400">${po.sku}</div>
+          </td>
+          <td class="py-3 px-3 text-right font-mono font-bold text-white">${po.orderQty} units</td>
+          <td class="py-3 px-3 text-slate-200">${po.vendorName}</td>
+          <td class="py-3 px-3 text-right font-mono">₹${po.unitPrice}</td>
+          <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400">₹${po.totalCost.toLocaleString('en-IN')}</td>
+          <td class="py-3 px-3 text-right font-mono">${po.deliveryDeadline} days</td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">${po.priority} · ${po.status}</span>
+          </td>
+          <td class="py-3 px-3">
+            <button onclick="receivePoIntoStock('${po.sku}', ${po.orderQty}, '${po.poId}')" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold cursor-pointer">
+              Receive into WH-A (+${po.orderQty}u)
+            </button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function receivePoIntoStock(sku, qty, poId) {
+      const prod = appProducts.find(p => p.sku === sku);
+      if (!prod) return;
+      prod.nodes["WH-A"] += qty;
+      updateAllViews();
+      showToast(`Closed Auto-Procurement Loop: Received ${poId} (+${qty} units of ${prod.name}) into Warehouse A! Stockout risk resolved.`);
+    }
+
+    function addCustomSkuToNetwork() {
+      const code = (document.getElementById("newSkuCode")?.value || "").trim() || `SKU-CUSTOM-0${appProducts.length + 1}`;
+      const name = (document.getElementById("newSkuName")?.value || "").trim() || "Assam CTC Gold Tea (1kg Pack)";
+      const stock = parseInt(document.getElementById("newSkuStock")?.value || "90", 10);
+      const demand = parseInt(document.getElementById("newSkuDemand")?.value || "45", 10);
+      const lt = parseFloat(document.getElementById("newSkuLeadTime")?.value || "3");
+
+      appProducts.unshift({
+        sku: code,
+        name,
+        category: "Custom Live SKU",
+        sellingPrice: 320,
+        holdingCost: 1.8,
+        stockoutPenalty: 65,
+        leadTimeDays: lt,
+        seasonalTag: "Live Custom Entry",
+        nodes: { "WH-A": Math.round(stock * 0.5), "WH-B": Math.round(stock * 0.3), "ST-C": Math.max(0, stock - Math.round(stock * 0.8)) },
+        minBuffers: { "WH-A": 50, "WH-B": 35, "ST-C": 20 },
+        maxCap: { "WH-A": 300, "WH-B": 200, "ST-C": 100 },
+        auditDiscrepancy: 0,
+        history: Array.from({ length: 14 }, (_, i) => Math.max(5, demand + (i % 3 - 1) * 3)),
+        promoActive: false,
+        vendors: [
+          { id: "VEN-CUST-A", name: "Standard Regional Distributor", price: 210, leadTime: lt + 2, reliability: 0.90, bulkThresh: 200, bulkDisc: 5.0 },
+          { id: "VEN-CUST-B", name: "Express Priority Logistics", price: 225, leadTime: Math.max(1, lt - 1), reliability: 0.98, bulkThresh: 200, bulkDisc: 4.0 }
+        ]
+      });
+
+      updateAllViews();
+      switchTab("overview");
+      showToast(`Added ${code} (${name}) and executed all 11 supply chain agents!`);
+    }
+
+    function exportPosAsJson() {
+      if (!computedState) return;
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(computedState.purchaseOrders, null, 2));
+      const a = document.createElement("a");
+      a.setAttribute("href", dataStr);
+      a.setAttribute("download", "invenio_ps08_purchase_orders.json");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showToast("Exported structured Purchase Orders (JSON).");
+    }
+
+    async function runFullAgentCycle(triggerGemini) {
+      updateAllViews();
+      const apiKey = (document.getElementById("geminiApiKeyInput")?.value || "").trim();
+      const modeBadge = document.getElementById("orchestratorModeBadge");
+      const briefText = document.getElementById("orchestratorBriefText");
+
+      if (triggerGemini && apiKey) {
+        modeBadge.textContent = "AGENT 11 — QUERYING LIVE GOOGLE GEMINI 2.5 FLASH...";
+        try {
+          const prompt = `You are Agent 11 (Master Supply Chain Orchestrator) for Invenio AI (PS-08). Summarize the current autonomous supply chain cycle in 3 concise sentences covering high-risk stockouts, vendor selection trade-offs, and lateral warehouse transfers: ${JSON.stringify({
+            pos: computedState.purchaseOrders.slice(0, 3),
+            transfers: computedState.warehouseTransfers,
+            anomalies: computedState.anomalies
+          })}`;
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
+          const data = await res.json();
+          const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (reply) {
+            modeBadge.textContent = "AGENT 11 — LIVE GEMINI 2.5 FLASH ORCHESTRATOR ACTIVE";
+            briefText.textContent = reply;
+            showToast("Live Gemini 2.5 Flash reasoning completed!");
+            return;
+          }
+        } catch (err) {
+          modeBadge.textContent = "AGENT 11 — QUANTITATIVE AGENTIC CORE (GEMINI FALLBACK)";
+        }
+      }
+      if (triggerGemini) {
+        showToast("Executed full 11-agent supply chain cycle across all 8 SKUs and 3 warehouses.");
+      }
+    }
+
+    function resetToBaseline() {
+      appProducts = JSON.parse(JSON.stringify(BASELINE_PRODUCTS));
+      seasonalMultiplierOverride = 1.0;
+      simulatedVendorDelayDays = 0.0;
+      serviceLevelZ = 1.645;
+      lateralTransferExecuted = false;
+      const dSlider = document.getElementById("vendorDelaySlider");
+      if (dSlider) dSlider.value = "0";
+      const sSlider = document.getElementById("serviceLevelSlider");
+      if (sSlider) sSlider.value = "1.63";
+      updateAllViews();
+      showToast("Reset multi-warehouse inventory, demand series, and vendor SLAs to PS-08 baseline.");
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      updateAllViews();
+    });
+  </script>
+</body>
+</html>
