@@ -73,6 +73,8 @@ export const agenticAI = {
   simulate: (data: any) => api.post('/api/simulate', data),
   chat: (message: string, apiKey?: string) =>
     api.post('/api/ai/chat', { message, gemini_api_key: apiKey }),
+  resetDb: () => api.post('/api/ai/reset-db'),
+  getDemandHistory: (sku: string) => api.get(`/api/demand-history/${sku}`),
 };
 
 export default api;

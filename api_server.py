@@ -545,6 +545,48 @@ def execute_lateral_rebalance():
     return {"message": f"Successfully executed Transfer {tr['transfer_id']}: {tr['quantity']} units of {tr['product_name']} from {tr['from_warehouse']} to {tr['to_warehouse']}."}
 
 
+@app.post("/api/ai/reset-db")
+def reset_database():
+    """Resets database to baseline scenario for fresh live demo presentation."""
+    init_and_seed_db(DEFAULT_DB_PATH, force_reset=True)
+    return {"message": "Database reset to benchmark baseline"}
+
+
+@app.get("/api/demand-history/{sku}")
+def get_demand_history(sku: str):
+    """Returns 14-day demand history plus 7-day forecast series for visual charting."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT day_index, date_label, units_sold, promo_active FROM demand_history WHERE sku = ? ORDER BY day_index ASC", (sku,))
+    rows = cur.fetchall()
+    hist = [{"day": r["day_index"], "label": f"Day {r['day_index']}", "demand": r["units_sold"], "isPromo": bool(r["promo_active"])} for r in rows]
+    
+    # Get forecast from agent 2
+    state = orchestrator.run_autonomous_loop(persist_pos=False)
+    sku_rep = next((s for s in state["sku_reports"] if s["sku"] == sku), None)
+    fc_val = sku_rep["forecast"]["forecast_next_7d_daily"] if sku_rep else 50.0
+    
+    chart_data = []
+    for h in hist:
+        chart_data.append({
+            "name": h["label"],
+            "historical": h["demand"],
+            "forecast": None,
+            "promo": h["isPromo"],
+        })
+    # Append 7 future forecast points
+    last_day = hist[-1]["day"] if hist else 14
+    for i in range(1, 8):
+        chart_data.append({
+            "name": f"D+{i}",
+            "historical": None,
+            "forecast": round(fc_val, 1),
+            "promo": False,
+        })
+    conn.close()
+    return {"sku": sku, "series": chart_data}
+
+
 @app.post("/api/simulate")
 def simulate_supply_chain(req: SimulationRequest):
     return orchestrator.run_autonomous_loop(

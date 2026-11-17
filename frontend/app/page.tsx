@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Box,
   Card,
@@ -16,6 +17,8 @@ import {
   Avatar,
   Paper,
   Stack,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -38,6 +41,11 @@ import { useRouter } from 'next/navigation';
 function DashboardContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const { data: products } = useQuery({
     queryKey: ['products'],
@@ -63,7 +71,7 @@ function DashboardContent() {
   const rebalanceMutation = useMutation({
     mutationFn: () => agenticAI.executeRebalance(),
     onSuccess: (res) => {
-      alert(res.data.message);
+      setSnackbar({ open: true, message: res.data.message, severity: 'success' });
       queryClient.invalidateQueries({ queryKey: ['agenticState'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
@@ -72,7 +80,7 @@ function DashboardContent() {
   const autoRestockMutation = useMutation({
     mutationFn: () => agenticAI.autoRestock(),
     onSuccess: (res) => {
-      alert(res.data.message);
+      setSnackbar({ open: true, message: res.data.message, severity: 'success' });
       queryClient.invalidateQueries({ queryKey: ['agenticState'] });
       queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
     },
@@ -390,6 +398,16 @@ function DashboardContent() {
             </CardContent>
           </Card>
         </Box>
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert severity={snackbar.severity} sx={{ width: '100%' }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </MainLayout>
   );
