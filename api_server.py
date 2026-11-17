@@ -8,6 +8,12 @@ Powers both:
 """
 
 from __future__ import annotations
+import sys
+import asyncio
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 import json
 import os
 import sqlite3
@@ -928,3 +934,12 @@ def agentic_copilot_chat(req: ChatMessageRequest):
     inter-hub shifts, and drafts operational actions with live Gemini or local engine.
     """
     return llm_engine.chat_with_copilot(req.message, req.gemini_api_key)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    import uvicorn.loops.asyncio
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        uvicorn.loops.asyncio.asyncio_loop_factory = lambda use_subprocess=False: asyncio.SelectorEventLoop
+    uvicorn.run("api_server:app", host="127.0.0.1", port=8000, reload=False, loop="asyncio")

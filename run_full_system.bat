@@ -7,7 +7,7 @@ echo Mode: Pre-Compiled Production Build (Instant Zero-Lag Navigation)
 echo.
 
 echo [1/2] Starting FastAPI Agentic Backend on http://localhost:8000...
-start "Invenio AI Backend" cmd /k "cd /d %~dp0 && python -m uvicorn api_server:app --port 8000"
+start "Invenio AI Backend" cmd /k "cd /d %~dp0 && python api_server.py"
 
 timeout /t 2 /nobreak >nul
 

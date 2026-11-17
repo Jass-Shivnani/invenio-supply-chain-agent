@@ -398,6 +398,28 @@ def init_and_seed_db(db_path: str | Path = DEFAULT_DB_PATH, force_reset: bool = 
         customers,
     )
 
+    # 10. Seed Realistic Initial POS Invoices
+    sample_invoices = [
+        (
+            "INV-2026-001", "INV-2026-001", "Aarav Sharma", "9876543210", 210.0, "PAID", "2026-11-18",
+            json.dumps([
+                {"productId": "SKU-MILK-01", "productName": "Pasteurized Full-Cream Milk (1L Pack)", "quantity": 2, "unitPrice": 65.0, "total": 130.0},
+                {"productId": "SKU-YOGURT-04", "productName": "Probiotic Greek Yogurt (400g)", "quantity": 1, "unitPrice": 80.0, "total": 80.0}
+            ])
+        ),
+        (
+            "INV-2026-002", "INV-2026-002", "Pooja Mehta", "9820011223", 775.0, "PAID", "2026-11-18",
+            json.dumps([
+                {"productId": "SKU-WHEAT-03", "productName": "Chakki Fresh Whole Wheat Atta (10kg)", "quantity": 1, "unitPrice": 365.0, "total": 365.0},
+                {"productId": "SKU-RICE-02", "productName": "Premium Basmati Rice (5kg Bag)", "quantity": 1, "unitPrice": 410.0, "total": 410.0}
+            ])
+        ),
+    ]
+    cur.executemany(
+        "INSERT OR REPLACE INTO invoices (invoice_id, invoice_number, customer_name, customer_phone, total, status, date, items_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        sample_invoices,
+    )
+
     conn.commit()
     conn.close()
     return db_path
