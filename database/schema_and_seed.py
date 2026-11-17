@@ -112,12 +112,18 @@ CREATE TABLE IF NOT EXISTS warehouse_transfers (
 
 CREATE TABLE IF NOT EXISTS agent_audit_logs (
     log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
     agent_id TEXT NOT NULL,
     agent_name TEXT NOT NULL,
+    action_type TEXT NOT NULL,
     sku TEXT NOT NULL,
-    verdict TEXT NOT NULL,
-    metrics_json TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    product_name TEXT NOT NULL,
+    location_from TEXT DEFAULT 'N/A',
+    location_to TEXT DEFAULT 'N/A',
+    quantity INTEGER DEFAULT 0,
+    why_reason TEXT NOT NULL,
+    financial_impact REAL DEFAULT 0.0,
+    details_json TEXT DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -155,6 +161,15 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL,
     role TEXT NOT NULL,
     phone TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+    customer_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL UNIQUE,
+    email TEXT,
+    address TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 """
@@ -334,6 +349,53 @@ def init_and_seed_db(db_path: str | Path = DEFAULT_DB_PATH, force_reset: bool = 
     cur.executemany(
         "INSERT OR REPLACE INTO users (user_id, name, email, role, phone) VALUES (?, ?, ?, ?, ?)",
         users,
+    )
+
+    # 8. Seed Initial Agent Activity Audit Logs (Where & Why)
+    initial_audits = [
+        (
+            "AGENT-01", "Multi-Hub Inventory Tracker", "NETWORK_SYNC", "ALL", "Network-Wide",
+            "Bhiwandi Hub (WH-A)", "Turbhe Cold Hub (WH-B)", 0,
+            "Synchronized 8 SKUs across Bhiwandi, Turbhe, and Chembur nodes. Discrepancy delta: 0 units.",
+            0.0, json.dumps({"active_skus": 8, "total_nodes": 3})
+        ),
+        (
+            "AGENT-08", "Demand Anomaly Detector", "DEMAND_SURGE", "SKU-YOGURT-04", "Probiotic Greek Yogurt (400g)",
+            "Turbhe Cold Hub (WH-B)", "Chembur Retail Store (ST-C)", 102,
+            "Detected +308% sudden demand surge (102 units/day vs 25 units/day normal, Z-Score = 68.25) during summer promotion. Scaled dynamic safety buffer.",
+            3200.0, json.dumps({"z_score": 68.25, "promo_surge_pct": 308})
+        ),
+        (
+            "AGENT-05", "Supplier Intelligence Evaluator", "VENDOR_SCORING", "SKU-MILK-01", "Pasteurized Full-Cream Milk (1L Pack)",
+            "Vendor B (Amul Express)", "Turbhe Cold Hub (WH-B)", 200,
+            "Evaluated 3 suppliers: Vendor B selected (98.5% reliability, 2.0-day SLA @ ₹55/u). Rejected Vendor A (5.0-day lead time risk of total stockout).",
+            2618.0, json.dumps({"recommended_vendor": "VEN-B", "avoided_stockout_penalty": 2618.0})
+        ),
+        (
+            "AGENT-07", "Inter-Hub Stock Optimizer", "TRANSFER_RECOMMENDED", "SKU-WHEAT-03", "Chakki Fresh Whole Wheat Atta (10kg)",
+            "Bhiwandi Central Hub (WH-A)", "Turbhe Cold Hub (WH-B)", 50,
+            "Identified Turbhe running out in 0.8 days (35 units remaining). Bhiwandi holds 195 units surplus. Recommended 50-unit local shift saving ₹15,025 over new supplier orders.",
+            15025.0, json.dumps({"from": "WH-A", "to": "WH-B", "qty": 50, "transit_hours": 4})
+        ),
+    ]
+    cur.executemany(
+        """
+        INSERT INTO agent_audit_logs (agent_id, agent_name, action_type, sku, product_name,
+                                      location_from, location_to, quantity, why_reason, financial_impact, details_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        initial_audits,
+    )
+
+    # 9. Seed Retail Customers
+    customers = [
+        ("CUST-01", "Aarav Sharma", "9876543210", "aarav@gmail.com", "Chembur East, Mumbai, Maharashtra"),
+        ("CUST-02", "Pooja Mehta", "9820011223", "pooja.m@yahoo.com", "Sion West, Mumbai, Maharashtra"),
+        ("CUST-03", "Rohan Joshi", "9819955443", "rohan.j@corp.in", "Vashi Sector 17, Navi Mumbai"),
+    ]
+    cur.executemany(
+        "INSERT OR REPLACE INTO customers (customer_id, name, phone, email, address) VALUES (?, ?, ?, ?, ?)",
+        customers,
     )
 
     conn.commit()

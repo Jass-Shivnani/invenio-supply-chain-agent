@@ -70,7 +70,7 @@ export default function ReportsPage() {
   // Filter by date range
   const filteredInvoices = invoices.filter((inv: any) => {
     if (!startDate && !endDate) return true;
-    const invDate = new Date(inv.createdAt);
+    const invDate = new Date(inv.date || inv.createdAt || Date.now());
     if (startDate && invDate < new Date(startDate)) return false;
     if (endDate && invDate > new Date(endDate)) return false;
     return true;

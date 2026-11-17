@@ -183,7 +183,7 @@ function DashboardContent() {
                   disabled={rebalanceMutation.isPending}
                   onClick={() => rebalanceMutation.mutate()}
                 >
-                  Rebalance Wheat (WH-A → WH-B)
+                  {rebalanceMutation.isPending ? 'Shifting...' : 'Shift Surplus to Turbhe (Save ₹15k)'}
                 </Button>
                 <Button
                   size="small"
@@ -193,7 +193,7 @@ function DashboardContent() {
                   disabled={autoRestockMutation.isPending}
                   onClick={() => autoRestockMutation.mutate()}
                 >
-                  Auto-Restock POs
+                  {autoRestockMutation.isPending ? 'Ordering...' : 'Authorize Supplier Restock'}
                 </Button>
                 <Button
                   size="small"
@@ -202,7 +202,7 @@ function DashboardContent() {
                   endIcon={<ArrowForward />}
                   onClick={() => router.push('/ai-agent')}
                 >
-                  AI Copilot Hub
+                  Command Center
                 </Button>
               </Stack>
             </Box>

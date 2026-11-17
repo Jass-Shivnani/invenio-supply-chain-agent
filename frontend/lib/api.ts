@@ -32,6 +32,7 @@ export const inventoryAPI = {
   getById: (productId: string) => api.get(`/inventory/${productId}`),
   update: (productId: string, data: any) => api.put(`/inventory/${productId}`, data),
   getLowStock: () => api.get('/inventory/low-stock'),
+  getMultiHub: () => api.get('/api/inventory/multi-hub'),
 };
 
 // Transactions
@@ -75,6 +76,12 @@ export const agenticAI = {
     api.post('/api/ai/chat', { message, gemini_api_key: apiKey }),
   resetDb: () => api.post('/api/ai/reset-db'),
   getDemandHistory: (sku: string) => api.get(`/api/demand-history/${sku}`),
+  getAuditFeed: (limit?: number) =>
+    api.get(`/api/ai/audit-feed${limit ? `?limit=${limit}` : ''}`),
+  triggerCognitiveCycle: (apiKey?: string, serviceLevelZ?: number) =>
+    api.post('/api/ai/trigger-cognitive-cycle', { gemini_api_key: apiKey, service_level_z: serviceLevelZ || 1.645 }),
+  configureKey: (apiKey: string) =>
+    api.post('/api/ai/configure-key', { api_key: apiKey }),
 };
 
 export default api;

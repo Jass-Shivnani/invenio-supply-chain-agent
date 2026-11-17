@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -19,11 +19,13 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  Slider,
-  Stack,
-  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   LinearProgress,
   Tooltip,
+  Divider,
 } from '@mui/material';
 import {
   AutoAwesome,
@@ -41,6 +43,8 @@ import {
   Storefront,
   LocalShipping,
   ShowChart,
+  Settings,
+  ArrowForward,
   TrendingUp,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -49,50 +53,55 @@ import MainLayout from '@/components/MainLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function AIAgentPage() {
+  const [apiKey, setApiKey] = useState('');
+  const [openSettingsDialog, setOpenSettingsDialog] = useState(false);
+  const [isLiveLlmMode, setIsLiveLlmMode] = useState(false);
   const [selectedSkuForChart, setSelectedSkuForChart] = useState('SKU-YOGURT-04');
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'agent'; text: string; actions?: string[] }>>([
+  const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'agent'; text: string; mode?: string }>>([
     {
       sender: 'agent',
-      text: 'Orchestrator online. Monitoring 3 fulfillment hubs (WH-A Bhiwandi, WH-B Turbhe, ST-C Chembur). Ready for real-time risk assessment, lateral transfers, and autonomous procurement.',
-      actions: [
-        'Why Vendor B for Milk?',
-        'Explain Yogurt demand spike',
-        'Review Wheat lateral transfer',
-        'Summary of network risks',
-      ],
+      text: 'Invenio Autonomous Inventory Copilot online. Actively monitoring Bhiwandi Central Hub (WH-A), Turbhe Cold Hub (WH-B), and Chembur Retail Store (ST-C). All nodes synchronized.',
+      mode: 'COGNITIVE_COPILOT',
     },
   ]);
   const [chatLoading, setChatLoading] = useState(false);
-  const [vendorBDelay, setVendorBDelay] = useState(0.0);
   const [serviceZ, setServiceZ] = useState(1.645);
   const [actionNotice, setActionNotice] = useState<{ severity: 'success' | 'info' | 'error'; message: string } | null>(null);
 
   const queryClient = useQueryClient();
 
-  // 1. Live 11-Agent State
+  // 1. Live Agent State
   const { data: agentState, isLoading, refetch } = useQuery({
     queryKey: ['agenticState', serviceZ],
     queryFn: () => agenticAI.getState(serviceZ).then((res) => res.data),
-    refetchInterval: 12000,
+    refetchInterval: 10000,
   });
 
-  // 2. Selected SKU Demand History
+  // 2. Live Agent Activity & Audit Feed ("Where & Why")
+  const { data: auditFeedData, refetch: refetchAudit } = useQuery({
+    queryKey: ['auditFeed'],
+    queryFn: () => agenticAI.getAuditFeed(15).then((res) => res.data),
+    refetchInterval: 6000,
+  });
+
+  // 3. Selected SKU Demand History
   const { data: demandHistoryData } = useQuery({
     queryKey: ['demandHistory', selectedSkuForChart],
     queryFn: () => agenticAI.getDemandHistory(selectedSkuForChart).then((res) => res.data),
   });
 
-  // 3. Mutations
+  // 4. Mutations
   const rebalanceMutation = useMutation({
     mutationFn: () => agenticAI.executeRebalance(),
     onSuccess: (res) => {
       setActionNotice({ severity: 'success', message: res.data.message });
       queryClient.invalidateQueries({ queryKey: ['agenticState'] });
+      queryClient.invalidateQueries({ queryKey: ['auditFeed'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
     onError: () => {
-      setActionNotice({ severity: 'error', message: 'Transfer execution failed.' });
+      setActionNotice({ severity: 'error', message: 'Inter-hub shift failed.' });
     },
   });
 
@@ -101,20 +110,45 @@ export default function AIAgentPage() {
     onSuccess: (res) => {
       setActionNotice({ severity: 'success', message: res.data.message });
       queryClient.invalidateQueries({ queryKey: ['agenticState'] });
+      queryClient.invalidateQueries({ queryKey: ['auditFeed'] });
       queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
     },
     onError: () => {
-      setActionNotice({ severity: 'error', message: 'Auto-restock execution failed.' });
+      setActionNotice({ severity: 'error', message: 'Restock dispatch failed.' });
+    },
+  });
+
+  const cognitiveCycleMutation = useMutation({
+    mutationFn: () => agenticAI.triggerCognitiveCycle(apiKey, serviceZ),
+    onSuccess: (res) => {
+      setActionNotice({
+        severity: 'success',
+        message: `Autonomous Cognitive Cycle Executed via ${res.data.engine_mode}. Executed ${res.data.decisions_executed?.length || 0} autonomous actions.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['agenticState'] });
+      queryClient.invalidateQueries({ queryKey: ['auditFeed'] });
     },
   });
 
   const resetDbMutation = useMutation({
     mutationFn: () => agenticAI.resetDb(),
     onSuccess: () => {
-      setActionNotice({ severity: 'info', message: 'Network reset to baseline scenario.' });
+      setActionNotice({ severity: 'info', message: 'Inventory network reset to benchmark baseline.' });
       queryClient.invalidateQueries();
     },
   });
+
+  const handleSaveApiKey = async () => {
+    if (!apiKey.trim()) return;
+    try {
+      await agenticAI.configureKey(apiKey.trim());
+      setIsLiveLlmMode(true);
+      setActionNotice({ severity: 'success', message: 'Gemini 2.5 Flash API Key activated. Cognitive agent is ready.' });
+      setOpenSettingsDialog(false);
+    } catch {
+      setActionNotice({ severity: 'error', message: 'Failed to activate Gemini API Key.' });
+    }
+  };
 
   const handleSendMessage = async (msgText?: string) => {
     const textToSend = msgText || chatInput;
@@ -126,13 +160,13 @@ export default function AIAgentPage() {
     setChatLoading(true);
 
     try {
-      const res = await agenticAI.chat(textToSend);
+      const res = await agenticAI.chat(textToSend, apiKey || undefined);
       setChatHistory([
         ...newHistory,
         {
           sender: 'agent' as const,
           text: res.data.reply,
-          actions: res.data.suggestedActions,
+          mode: res.data.mode,
         },
       ]);
     } catch {
@@ -140,7 +174,7 @@ export default function AIAgentPage() {
         ...newHistory,
         {
           sender: 'agent' as const,
-          text: 'Orchestrator active on local network.',
+          text: 'Autonomous copilot temporarily unavailable. Operating on local telemetry.',
         },
       ]);
     } finally {
@@ -148,649 +182,558 @@ export default function AIAgentPage() {
     }
   };
 
-  const kpis = agentState?.kpis;
-  const skuReports = agentState?.sku_reports || [];
+  const kpis = agentState?.kpis || {
+    total_skus_monitored: 8,
+    high_stockout_risk_skus: 2,
+    projected_service_level_pct: 98.5,
+    net_cost_and_penalty_saved: 17643.0,
+    total_units_in_network: 1710,
+  };
+
+  const auditFeed = auditFeedData?.auditFeed || [];
 
   return (
     <ProtectedRoute>
       <MainLayout>
-        <Box sx={{ p: { xs: 2, md: 3 } }}>
-          {/* Header Bar */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
+        <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1600, mx: 'auto' }}>
+          {/* Header Strip */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'flex-start', md: 'center' },
+              gap: 2,
+              mb: 3,
+            }}
+          >
             <Box>
-              <Typography variant="h5" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AutoAwesome sx={{ color: '#7c3aed', fontSize: 28 }} />
-                Supply Chain Intelligence Hub
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                11-Agent Closed-Loop Optimization • Multi-Echelon Topology: Bhiwandi (WH-A) | Turbhe (WH-B) | Chembur (ST-C)
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                <AutoAwesome sx={{ color: '#7c3aed', fontSize: 32 }} />
+                <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                  Autonomous Inventory Command Center
+                </Typography>
+                <Chip
+                  icon={<Psychology />}
+                  label={isLiveLlmMode ? 'Gemini 2.5 Flash' : 'Quantitative Core (Autonomous)'}
+                  size="small"
+                  color={isLiveLlmMode ? 'success' : 'primary'}
+                  variant="outlined"
+                  sx={{ fontWeight: 600 }}
+                />
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                Live multi-hub orchestration: Bhiwandi Mega Hub (WH-A) • Turbhe Cold Hub (WH-B) • Chembur Retail (ST-C)
               </Typography>
             </Box>
 
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Chip
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
                 size="small"
-                icon={<Speed fontSize="small" />}
-                label={agentState?.engine_mode || 'QUANTITATIVE_AGENTIC_CORE'}
-                sx={{ bgcolor: '#f3e8ff', color: '#6b21a8', fontWeight: 600, fontSize: '0.75rem' }}
-              />
-              <Tooltip title="Reset Network to Baseline">
-                <IconButton size="small" onClick={() => resetDbMutation.mutate()} sx={{ border: '1px solid #e2e8f0' }}>
-                  <RestartAlt fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Refresh State">
-                <IconButton size="small" onClick={() => refetch()} sx={{ border: '1px solid #e2e8f0' }}>
-                  <Refresh fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+                startIcon={<Settings />}
+                onClick={() => setOpenSettingsDialog(true)}
+              >
+                Model Settings
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<RestartAlt />}
+                onClick={() => resetDbMutation.mutate()}
+                disabled={resetDbMutation.isPending}
+              >
+                Reset Baseline
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<Speed />}
+                onClick={() => cognitiveCycleMutation.mutate()}
+                disabled={cognitiveCycleMutation.isPending}
+                sx={{ bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' } }}
+              >
+                {cognitiveCycleMutation.isPending ? 'Executing...' : 'Run Autonomous Cycle'}
+              </Button>
+            </Box>
           </Box>
 
-          {/* Action Notification */}
+          {/* Action Notice Banner */}
           {actionNotice && (
             <Alert
               severity={actionNotice.severity}
               onClose={() => setActionNotice(null)}
-              sx={{ mb: 2.5, py: 0.5, borderRadius: 2 }}
+              sx={{ mb: 3, borderRadius: 2 }}
             >
               {actionNotice.message}
             </Alert>
           )}
 
-          {/* Visual KPI Strip */}
+          {/* Executive KPI Visual Strip */}
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' },
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' },
               gap: 2,
               mb: 3,
             }}
           >
-            <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2, bgcolor: '#ffffff' }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                  SERVICE LEVEL
+            <Card sx={{ borderRadius: 3, border: '1px solid #fee2e2', bgcolor: '#fff5f5' }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#dc2626', textTransform: 'uppercase' }}>
+                    Stockout Risk Deficits
+                  </Typography>
+                  <Warning sx={{ color: '#dc2626', fontSize: 20 }} />
+                </Box>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#991b1b' }}>
+                  {kpis.high_stockout_risk_skus} <Typography component="span" variant="body2" sx={{ color: '#dc2626' }}>SKUs</Typography>
                 </Typography>
-                <Typography variant="h5" fontWeight={700} color="#059669">
-                  {kpis?.projected_service_level_pct || 98.6}%
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(100, kpis?.projected_service_level_pct || 98)}
-                  sx={{ mt: 1, height: 6, borderRadius: 3, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#059669' } }}
-                />
-              </CardContent>
-            </Card>
-
-            <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2, bgcolor: '#ffffff' }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                  PENALTIES PROTECTED
-                </Typography>
-                <Typography variant="h5" fontWeight={700} color="#7c3aed">
-                  ₹{kpis?.net_cost_and_penalty_saved ? kpis.net_cost_and_penalty_saved.toLocaleString() : '62,526'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Stockout Loss Averted
+                <Typography variant="caption" sx={{ color: '#7f1d1d' }}>
+                  Pasteurized Milk (2.4d) & Greek Yogurt Surge
                 </Typography>
               </CardContent>
             </Card>
 
-            <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2, bgcolor: '#ffffff' }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                  STOCKOUT DEFICITS
+            <Card sx={{ borderRadius: 3, border: '1px solid #dcfce7', bgcolor: '#f0fdf4' }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#16a34a', textTransform: 'uppercase' }}>
+                    Capital & Loss Protected
+                  </Typography>
+                  <Shield sx={{ color: '#16a34a', fontSize: 20 }} />
+                </Box>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#14532d' }}>
+                  ₹{Number(kpis.net_cost_and_penalty_saved).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </Typography>
-                <Typography variant="h5" fontWeight={700} color="#dc2626">
-                  {kpis?.high_stockout_risk_skus || 5} SKUs
-                </Typography>
-                <Typography variant="caption" color="#dc2626">
-                  Runout &lt; Lead Time
-                </Typography>
-              </CardContent>
-            </Card>
-
-            <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2, bgcolor: '#ffffff' }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                  LATERAL REBALANCING
-                </Typography>
-                <Typography variant="h5" fontWeight={700} color="#2563eb">
-                  1 Route
-                </Typography>
-                <Typography variant="caption" color="#2563eb">
-                  WH-A → WH-B (Saves ₹15,025)
+                <Typography variant="caption" sx={{ color: '#166534' }}>
+                  Saved via inter-hub transfer & SLA routing
                 </Typography>
               </CardContent>
             </Card>
 
-            <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2, bgcolor: '#ffffff' }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                  AUTONOMOUS ORDERS
+            <Card sx={{ borderRadius: 3, border: '1px solid #e0e7ff', bgcolor: '#eef2ff' }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#4f46e5', textTransform: 'uppercase' }}>
+                    Network Service Level
+                  </Typography>
+                  <Speed sx={{ color: '#4f46e5', fontSize: 20 }} />
+                </Box>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#312e81' }}>
+                  {kpis.projected_service_level_pct}%
                 </Typography>
-                <Typography variant="h5" fontWeight={700} color="#4b5563">
-                  {kpis?.auto_pos_generated || 6} POs
+                <Typography variant="caption" sx={{ color: '#3730a3' }}>
+                  Target: 95.0% • Volatility safety buffered
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  ₹{kpis?.total_auto_po_spend ? Math.round(kpis.total_auto_po_spend).toLocaleString() : '7,01,639'} Spend
+              </CardContent>
+            </Card>
+
+            <Card sx={{ borderRadius: 3, border: '1px solid #f3e8ff', bgcolor: '#faf5ff' }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase' }}>
+                    Active Network Stock
+                  </Typography>
+                  <Warehouse sx={{ color: '#7c3aed', fontSize: 20 }} />
+                </Box>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#581c87' }}>
+                  {Number(kpis.total_units_in_network).toLocaleString('en-IN')} <Typography component="span" variant="body2" sx={{ color: '#7c3aed' }}>units</Typography>
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#6b21a8' }}>
+                  Balanced across 3 distribution hubs
                 </Typography>
               </CardContent>
             </Card>
           </Box>
 
-          {/* VISUAL NETWORK TOPOLOGY & ACTIONS */}
-          <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2, mb: 3 }}>
-            <CardContent sx={{ p: 2.5 }}>
+          {/* Interactive Multi-Hub Visual Flow Strip */}
+          <Card sx={{ borderRadius: 3, mb: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+            <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Warehouse sx={{ color: '#7c3aed' }} />
-                  Multi-Echelon Network Fulfillment Topology
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Warehouse sx={{ color: '#2563eb' }} /> Multi-Hub Distribution Network
                 </Typography>
-                <Stack direction="row" spacing={1.5}>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    sx={{ bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' }, fontWeight: 600, textTransform: 'none' }}
-                    startIcon={<SwapHoriz />}
-                    disabled={rebalanceMutation.isPending}
-                    onClick={() => rebalanceMutation.mutate()}
-                  >
-                    Execute Lateral Transfer (50u Wheat)
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    color="success"
-                    sx={{ fontWeight: 600, textTransform: 'none' }}
-                    startIcon={<ShoppingCart />}
-                    disabled={autoRestockMutation.isPending}
-                    onClick={() => autoRestockMutation.mutate()}
-                  >
-                    Auto-Restock High-Risk SKUs
-                  </Button>
-                </Stack>
+                <Chip label="Real-time Inventory Balance" size="small" sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600 }} />
               </Box>
 
-              {/* 3 Node Visual Cards with Transfer Bridge */}
               <Box
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', md: '1fr 140px 1fr 1fr' },
+                  gridTemplateColumns: { xs: '1fr', md: '1fr auto 1fr auto 1fr' },
                   alignItems: 'center',
-                  gap: 1.5,
-                  p: 2,
-                  bgcolor: '#f8fafc',
-                  borderRadius: 2,
-                  border: '1px dashed #cbd5e1',
+                  gap: 2,
                 }}
               >
-                {/* Node 1: WH-A */}
-                <Box sx={{ bgcolor: '#ffffff', p: 2, borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                {/* Node WH-A */}
+                <Box sx={{ p: 2, border: '1px solid #cbd5e1', borderRadius: 2, bgcolor: '#f8fafc' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="subtitle2" fontWeight={700}>
-                      WH-A: Bhiwandi Hub
-                    </Typography>
-                    <Chip label="Surplus Stock" size="small" sx={{ bgcolor: '#dbeafe', color: '#1e40af', fontSize: '0.7rem' }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>WH-A: Bhiwandi Central Hub</Typography>
+                    <Chip label="Mega Reserve" size="small" sx={{ bgcolor: '#e2e8f0', fontSize: '0.7rem' }} />
                   </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Regional Distribution • Capacity: 5,000u
-                  </Typography>
-                  <LinearProgress variant="determinate" value={18} sx={{ my: 1, height: 6, borderRadius: 3 }} />
-                  <Typography variant="caption" fontWeight={600}>
-                    Wheat Buffer: 195 units (Safe)
-                  </Typography>
-                </Box>
-
-                {/* Transfer Bridge Vector */}
-                <Box sx={{ textAlign: 'center' }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <Chip
-                      label="TR-201"
-                      size="small"
-                      color="secondary"
-                      sx={{ fontSize: '0.65rem', height: 20, mb: 0.5 }}
-                    />
-                    <Box sx={{ width: '100%', height: 2, bgcolor: '#7c3aed', position: 'relative' }}>
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          right: -4,
-                          top: -5,
-                          width: 0,
-                          height: 0,
-                          borderTop: '6px solid transparent',
-                          borderBottom: '6px solid transparent',
-                          borderLeft: '8px solid #7c3aed',
-                        }}
-                      />
-                    </Box>
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: 600, mt: 0.5 }}>
-                      50u Atta
-                    </Typography>
+                  <Typography variant="caption" color="text.secondary">Capacity: 1,240 / 2,000 units</Typography>
+                  <LinearProgress variant="determinate" value={62} sx={{ my: 1, height: 6, borderRadius: 3, bgcolor: '#e2e8f0' }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#16a34a' }}>✓ Surplus Stock Available</Typography>
+                    <Typography variant="caption" color="text.secondary">Bay 1-8</Typography>
                   </Box>
                 </Box>
 
-                {/* Node 2: WH-B */}
-                <Box sx={{ bgcolor: '#ffffff', p: 2, borderRadius: 2, border: '1px solid #e2e8f0' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="subtitle2" fontWeight={700}>
-                      WH-B: Turbhe Cold Hub
-                    </Typography>
-                    <Chip label="Low Buffer" size="small" sx={{ bgcolor: '#fee2e2', color: '#991b1b', fontSize: '0.7rem' }} />
-                  </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Cold-Chain & Quick Dispatch • Capacity: 3,500u
-                  </Typography>
-                  <LinearProgress variant="determinate" value={12} color="error" sx={{ my: 1, height: 6, borderRadius: 3 }} />
-                  <Typography variant="caption" fontWeight={600} color="error">
-                    Wheat Buffer: 35 units (Stockout Risk)
-                  </Typography>
+                {/* Transfer Arrow A -> B */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', px: 1 }}>
+                  <Chip
+                    icon={<SwapHoriz sx={{ fontSize: '1rem !important' }} />}
+                    label="TR-201: 50u Atta"
+                    size="small"
+                    color="secondary"
+                    sx={{ mb: 0.5, fontWeight: 600 }}
+                  />
+                  <ArrowForward sx={{ color: '#7c3aed', fontSize: 24 }} />
+                  <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.68rem' }}>4h Local Transit</Typography>
                 </Box>
 
-                {/* Node 3: ST-C */}
-                <Box sx={{ bgcolor: '#ffffff', p: 2, borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                {/* Node WH-B */}
+                <Box sx={{ p: 2, border: '1px solid #bfdbfe', borderRadius: 2, bgcolor: '#f0f9ff' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="subtitle2" fontWeight={700}>
-                      ST-C: Chembur Node
-                    </Typography>
-                    <Chip label="Active POS" size="small" sx={{ bgcolor: '#dcfce7', color: '#166534', fontSize: '0.7rem' }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>WH-B: Turbhe Cold Hub</Typography>
+                    <Chip label="Cold Chain" size="small" color="info" sx={{ fontSize: '0.7rem' }} />
                   </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Retail & Dark Store Node • Capacity: 1,500u
-                  </Typography>
-                  <LinearProgress variant="determinate" value={15} color="success" sx={{ my: 1, height: 6, borderRadius: 3 }} />
-                  <Typography variant="caption" fontWeight={600}>
-                    Fulfillment Rate: 99.2%
-                  </Typography>
+                  <Typography variant="caption" color="text.secondary">Capacity: 280 / 800 units</Typography>
+                  <LinearProgress variant="determinate" value={35} color="warning" sx={{ my: 1, height: 6, borderRadius: 3 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#0284c7' }}>Rebalanced via WH-A</Typography>
+                    <Typography variant="caption" color="text.secondary">Rack 12</Typography>
+                  </Box>
+                </Box>
+
+                {/* Transfer Arrow B -> C */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', px: 1 }}>
+                  <ArrowForward sx={{ color: '#0ea5e9', fontSize: 24 }} />
+                  <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.68rem' }}>Daily Dispatch</Typography>
+                </Box>
+
+                {/* Node ST-C */}
+                <Box sx={{ p: 2, border: '1px solid #cbd5e1', borderRadius: 2, bgcolor: '#f8fafc' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>ST-C: Chembur Retail Store</Typography>
+                    <Chip label="Direct POS" size="small" sx={{ bgcolor: '#e2e8f0', fontSize: '0.7rem' }} />
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">Capacity: 190 / 300 units</Typography>
+                  <LinearProgress variant="determinate" value={63} color="success" sx={{ my: 1, height: 6, borderRadius: 3 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#16a34a' }}>Active Walk-in Sales</Typography>
+                    <Typography variant="caption" color="text.secondary">POS 1 & 2</Typography>
+                  </Box>
                 </Box>
               </Box>
             </CardContent>
           </Card>
 
-          {/* VISUAL STOCKOUT RISK MATRIX */}
-          <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2, mb: 3 }}>
-            <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Shield sx={{ color: '#059669' }} />
-                  Agents 1-4: Dynamic Runout & Volatility Risk Radar
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Red indicator: Days to Runout &lt; Supplier Lead Time
-                </Typography>
-              </Box>
-
-              <TableContainer>
-                <Table size="small">
-                  <TableHead sx={{ bgcolor: '#f8fafc' }}>
-                    <TableRow>
-                      <TableCell><strong>SKU</strong></TableCell>
-                      <TableCell><strong>Product</strong></TableCell>
-                      <TableCell><strong>Stock (WH-A / WH-B / ST-C)</strong></TableCell>
-                      <TableCell><strong>Daily Demand → 7d Fcst</strong></TableCell>
-                      <TableCell sx={{ minWidth: 200 }}><strong>Runout Horizon vs Lead Time</strong></TableCell>
-                      <TableCell><strong>Safety Stock (Dyn / Fix)</strong></TableCell>
-                      <TableCell align="center"><strong>Autonomous Action</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {skuReports.map((r: any) => {
-                      const nodesStr = r.inventory.nodes.map((n: any) => n.available_stock).join(' / ');
-                      const runout = r.risk.days_until_runout;
-                      const lt = r.risk.lead_time_days;
-                      const deficit = runout - lt;
-                      const isHigh = r.risk.risk_level === 'HIGH';
-                      const isRebalanced = r.risk.risk_level === 'REBALANCED_INTERNALLY';
-                      const progressPct = Math.min(100, (runout / Math.max(1, lt * 2)) * 100);
-
-                      return (
-                        <TableRow key={r.sku} hover>
-                          <TableCell>
-                            <Typography variant="caption" fontWeight={700} color="text.secondary">
-                              {r.sku}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {r.name}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              <strong>{r.inventory.total_available_stock}u</strong> ({nodesStr})
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {r.forecast.current_daily_demand}/d → <strong>{r.forecast.forecast_next_7d_daily}/d</strong>
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Box sx={{ flexGrow: 1 }}>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={progressPct}
-                                  sx={{
-                                    height: 6,
-                                    borderRadius: 3,
-                                    bgcolor: '#e2e8f0',
-                                    '& .MuiLinearProgress-bar': {
-                                      bgcolor: deficit < 0 ? '#ef4444' : deficit < 2 ? '#f59e0b' : '#10b981',
-                                    },
-                                  }}
-                                />
-                              </Box>
-                              <Typography
-                                variant="caption"
-                                fontWeight={700}
-                                sx={{ color: deficit < 0 ? '#ef4444' : '#10b981', minWidth: 70 }}
-                              >
-                                {runout}d (LT {lt}d)
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="caption">
-                              <strong>{r.reorder.dynamic_safety_stock}u</strong> (Fix: {r.reorder.fixed_safety_stock}u)
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            {isRebalanced ? (
-                              <Chip
-                                label="Lateral Balance"
-                                size="small"
-                                sx={{ bgcolor: '#e0e7ff', color: '#3730a3', fontWeight: 600, fontSize: '0.7rem' }}
-                              />
-                            ) : isHigh ? (
-                              <Chip
-                                label={`Order ${r.purchase_order ? r.purchase_order.order_quantity : r.reorder.recommended_order_qty}u`}
-                                size="small"
-                                color="error"
-                                sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                              />
-                            ) : (
-                              <Chip
-                                label="Optimal"
-                                size="small"
-                                color="success"
-                                sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                              />
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-
-          {/* INTERACTIVE DEMAND SPARKLINE & WHAT-IF STRESS SIMULATOR */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, mb: 3 }}>
-            {/* Left: Holt-Winters Demand Forecasting Visualizer */}
-            <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2 }}>
-              <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography variant="subtitle1" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ShowChart sx={{ color: '#7c3aed' }} />
-                    Agent 2: Holt-Winters Smoothing & Promo Sensing
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    14d History + 7d Projected Trend
-                  </Typography>
+          {/* Core Operations Grid */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+              gap: 3,
+              mb: 3,
+            }}
+          >
+            {/* Action Card 1: Shift Surplus Stock */}
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SwapHoriz sx={{ color: '#7c3aed' }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Shift Surplus Stock Between Hubs
+                    </Typography>
+                  </Box>
+                  <Chip label="Zero Supplier Cost" size="small" color="success" sx={{ fontWeight: 600 }} />
                 </Box>
 
-                {/* SKU Selector Pills */}
-                <Stack direction="row" spacing={0.8} sx={{ mb: 2, flexWrap: 'wrap', gap: 0.5 }}>
-                  {['SKU-YOGURT-04', 'SKU-MILK-01', 'SKU-RICE-02', 'SKU-OIL-05'].map((sku) => (
-                    <Chip
-                      key={sku}
-                      label={sku.replace('SKU-', '')}
-                      size="small"
-                      clickable
-                      onClick={() => setSelectedSkuForChart(sku)}
-                      color={selectedSkuForChart === sku ? 'primary' : 'default'}
-                      variant={selectedSkuForChart === sku ? 'filled' : 'outlined'}
-                      sx={{ fontSize: '0.75rem', fontWeight: 600 }}
-                    />
-                  ))}
-                </Stack>
-
-                {/* Visual Bar/Line Chart Mock with Real Data */}
-                <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                <Box sx={{ p: 2, borderRadius: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="caption" fontWeight={600}>
-                      {selectedSkuForChart === 'SKU-YOGURT-04'
-                        ? 'Greek Yogurt (Summer Promotion Surge +308%)'
-                        : selectedSkuForChart === 'SKU-RICE-02'
-                        ? 'Basmati Rice (Festival Demand Ramp 100 → 160u/d)'
-                        : 'Daily Demand Rate'}
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Chakki Fresh Whole Wheat Atta (10kg)
                     </Typography>
-                    <Chip
-                      size="small"
-                      label={selectedSkuForChart === 'SKU-YOGURT-04' ? 'Z=68.25 | SPIKE DETECTED' : 'ALPHA=0.45, BETA=0.25'}
-                      color={selectedSkuForChart === 'SKU-YOGURT-04' ? 'error' : 'secondary'}
-                      sx={{ fontSize: '0.65rem', height: 20 }}
-                    />
+                    <Chip label="50 Units" size="small" sx={{ bgcolor: '#ede9fe', color: '#6d28d9', fontWeight: 700 }} />
                   </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    • Source: <b>Bhiwandi Central Hub (Bay 4)</b> (Holds 195 units, 80u safety buffer)
+                    <br />
+                    • Destination: <b>Turbhe Cold Hub (Rack 12)</b> (Stock 35 units, runout in 0.8 days)
+                  </Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>
+                      Savings: ₹15,025 vs supplier spot purchase
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">Transit: ₹475 (4 hrs)</Typography>
+                  </Box>
+                </Box>
 
-                  {/* Visual Bar Graph */}
-                  <Box sx={{ display: 'flex', alignItems: 'flex-end', height: 110, gap: '4px', pt: 2 }}>
-                    {(demandHistoryData?.series || []).map((point: any, idx: number) => {
-                      const val = point.historical !== null ? point.historical : point.forecast;
-                      const maxVal = selectedSkuForChart === 'SKU-YOGURT-04' ? 120 : selectedSkuForChart === 'SKU-RICE-02' ? 180 : 80;
-                      const heightPct = Math.min(100, (val / maxVal) * 100);
-                      const isForecast = point.historical === null;
-                      const isPromo = point.promo;
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<LocalShipping />}
+                  onClick={() => rebalanceMutation.mutate()}
+                  disabled={rebalanceMutation.isPending}
+                  sx={{ bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' }, py: 1.2, fontWeight: 600 }}
+                >
+                  {rebalanceMutation.isPending ? 'Executing Transfer...' : 'Authorize Inter-Hub Stock Shift (TR-201)'}
+                </Button>
+              </CardContent>
+            </Card>
 
-                      return (
-                        <Box
-                          key={idx}
-                          sx={{
-                            flex: 1,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            height: '100%',
-                            justifyContent: 'flex-end',
-                          }}
-                        >
-                          <Tooltip title={`${point.name}: ${val} units ${isForecast ? '(Forecast)' : ''}`}>
-                            <Box
-                              sx={{
-                                width: '100%',
-                                height: `${heightPct}%`,
-                                bgcolor: isPromo ? '#ef4444' : isForecast ? '#c084fc' : '#3b82f6',
-                                borderRadius: '2px 2px 0 0',
-                                transition: 'height 0.3s ease',
-                              }}
+            {/* Action Card 2: Authorize Supplier Restock */}
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ShoppingCart sx={{ color: '#2563eb' }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Authorize Urgent Supplier Restock
+                    </Typography>
+                  </Box>
+                  <Chip label="Critical SLA Shield" size="small" color="error" sx={{ fontWeight: 600 }} />
+                </Box>
+
+                <Box sx={{ p: 2, borderRadius: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Pasteurized Full-Cream Milk (1L Pack)
+                    </Typography>
+                    <Chip label="PO-1024: 200u" size="small" sx={{ bgcolor: '#dbeafe', color: '#1e40af', fontWeight: 700 }} />
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    • Selected: <b>Vendor B (Amul Express Cold-Chain)</b> @ ₹55/unit (2.0-day SLA)
+                    <br />
+                    • Rejected: Vendor A (Govind Dairy) due to 5.0-day delivery delay risking total stockout
+                  </Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>
+                      Penalty Defended: ₹2,618 avoided
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">Total Cost: ₹11,000</Typography>
+                  </Box>
+                </Box>
+
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<ShoppingCart />}
+                  onClick={() => autoRestockMutation.mutate()}
+                  disabled={autoRestockMutation.isPending}
+                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, py: 1.2, fontWeight: 600 }}
+                >
+                  {autoRestockMutation.isPending ? 'Authorizing...' : 'Authorize Purchase Orders for Risk SKUs'}
+                </Button>
+              </CardContent>
+            </Card>
+          </Box>
+
+          {/* Live Decision Feed & Copilot */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+              gap: 3,
+            }}
+          >
+            {/* Live Activity & Decision Feed ("Where & Why") */}
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Shield sx={{ color: '#16a34a' }} /> Live Agent Activity & Audit Feed
+                  </Typography>
+                  <IconButton size="small" onClick={() => refetchAudit()}>
+                    <Refresh fontSize="small" />
+                  </IconButton>
+                </Box>
+
+                <Box sx={{ maxHeight: 420, overflowY: 'auto', pr: 1 }}>
+                  {auditFeed.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+                      No audit activities logged yet.
+                    </Typography>
+                  ) : (
+                    auditFeed.map((item: any) => (
+                      <Box
+                        key={item.log_id}
+                        sx={{
+                          p: 1.5,
+                          mb: 1.5,
+                          borderRadius: 2,
+                          bgcolor: item.action_type === 'STOCK_TRANSFER' ? '#faf5ff' : item.action_type === 'DEMAND_SURGE' ? '#fffbeb' : '#f0fdf4',
+                          border: '1px solid',
+                          borderColor: item.action_type === 'STOCK_TRANSFER' ? '#f3e8ff' : item.action_type === 'DEMAND_SURGE' ? '#fef3c7' : '#dcfce7',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                              label={item.agent_name}
+                              size="small"
+                              sx={{ fontSize: '0.68rem', fontWeight: 700, height: 20 }}
                             />
-                          </Tooltip>
+                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                              {item.action_type.replace('_', ' ')}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.timestamp ? item.timestamp.split(' ')[1] || item.timestamp : 'Just now'}
+                          </Typography>
                         </Box>
-                      );
-                    })}
-                  </Box>
 
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, pt: 1, borderTop: '1px solid #e2e8f0' }}>
-                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#64748b' }}>
-                      ● Past 14 Days Actual (Blue)
-                    </Typography>
-                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#ef4444' }}>
-                      ● Promotion Spike (Red)
-                    </Typography>
-                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#a855f7' }}>
-                      ● 7-Day Holt-Winters Projection (Purple)
-                    </Typography>
-                  </Box>
+                        <Typography variant="body2" sx={{ fontSize: '0.82rem', mb: 0.5 }}>
+                          {item.why_reason}
+                        </Typography>
+
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>
+                            📍 {item.location_from} ➔ {item.location_to}
+                          </Typography>
+                          {item.financial_impact > 0 && (
+                            <Chip
+                              label={`+₹${item.financial_impact.toLocaleString('en-IN')} Saved`}
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                              sx={{ fontSize: '0.65rem', height: 18 }}
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                    ))
+                  )}
                 </Box>
               </CardContent>
             </Card>
 
-            {/* Right: What-If Supply Chain Stress Simulator */}
-            <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2 }}>
-              <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography variant="subtitle1" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LocalShipping sx={{ color: '#2563eb' }} />
-                    Agent 5: Live What-If Supply Chain Stress Simulator
+            {/* Conversational Inventory Copilot */}
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+              <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', height: 500 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Psychology sx={{ color: '#7c3aed' }} /> Autonomous Inventory Copilot
                   </Typography>
-                  <Chip label="Real-time Evaluation" size="small" color="primary" sx={{ fontSize: '0.65rem', height: 20 }} />
-                </Box>
-
-                <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', mb: 2 }}>
-                  <Typography variant="caption" fontWeight={600} color="text.secondary">
-                    SIMULATE VENDOR B (AMUL EXPRESS) DELIVERY DELAY: {vendorBDelay} DAYS
-                  </Typography>
-                  <Slider
-                    value={vendorBDelay}
-                    onChange={(_, v) => setVendorBDelay(v as number)}
-                    min={0.0}
-                    max={4.0}
-                    step={0.5}
-                    marks={[
-                      { value: 0, label: '0d (Normal)' },
-                      { value: 2, label: '2d Delay' },
-                      { value: 4, label: '4d Disruption' },
-                    ]}
-                  />
-
-                  <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                    TARGET NETWORK SERVICE LEVEL (Z-SCORE): {serviceZ} ({serviceZ === 1.645 ? '95% SLA' : serviceZ >= 1.96 ? '98% SLA' : '90% SLA'})
-                  </Typography>
-                  <Slider
-                    value={serviceZ}
-                    onChange={(_, v) => setServiceZ(v as number)}
-                    min={1.28}
-                    max={2.33}
-                    step={0.3}
-                    marks={[
-                      { value: 1.28, label: '90%' },
-                      { value: 1.645, label: '95%' },
-                      { value: 1.96, label: '98%' },
-                    ]}
+                  <Chip
+                    label={isLiveLlmMode ? 'Gemini 2.5 Flash' : 'Local Cognitive Engine'}
+                    size="small"
+                    color={isLiveLlmMode ? 'success' : 'default'}
+                    sx={{ fontSize: '0.7rem' }}
                   />
                 </Box>
 
-                {/* Simulated Decision Outcome */}
-                <Box sx={{ p: 1.5, bgcolor: vendorBDelay >= 2.0 ? '#fffbeb' : '#f0fdf4', borderRadius: 1.5, border: 1, borderColor: vendorBDelay >= 2.0 ? '#fde68a' : '#bbf7d0' }}>
-                  <Typography variant="caption" fontWeight={700} sx={{ color: vendorBDelay >= 2.0 ? '#b45309' : '#15803d' }}>
-                    {vendorBDelay >= 2.0
-                      ? `DISRUPTION TRIGGERED: With +${vendorBDelay}d delay on Vendor B, Agent 5 dynamically reroutes orders to Vendor C (Mother Dairy Metro Direct @ ₹58) to prevent a 4-day stockout gap.`
-                      : 'NORMAL CONDITIONS: Vendor B (Amul Express) selected @ ₹55/unit with 2-day delivery SLA. Zero stockout gap.'}
-                  </Typography>
+                {/* Quick Prompts */}
+                <Box sx={{ display: 'flex', gap: 0.8, flexWrap: 'wrap', mb: 1.5 }}>
+                  {[
+                    'Why Vendor B for Milk?',
+                    'Explain Yogurt demand spike',
+                    'Review Wheat transfer',
+                    'Network health status',
+                  ].map((p) => (
+                    <Chip
+                      key={p}
+                      label={p}
+                      size="small"
+                      clickable
+                      onClick={() => handleSendMessage(p)}
+                      sx={{ fontSize: '0.72rem', bgcolor: '#f1f5f9' }}
+                    />
+                  ))}
+                </Box>
+
+                {/* Chat Message Scroll */}
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 1, border: '1px solid #f1f5f9', borderRadius: 2, mb: 2 }}>
+                  {chatHistory.map((msg, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                        mb: 1.5,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          maxWidth: '85%',
+                          p: 1.5,
+                          borderRadius: 2,
+                          bgcolor: msg.sender === 'user' ? '#7c3aed' : '#f8fafc',
+                          color: msg.sender === 'user' ? '#ffffff' : '#1e293b',
+                          border: msg.sender === 'user' ? 'none' : '1px solid #e2e8f0',
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>
+                          {msg.text}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                  {chatLoading && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1 }}>
+                      <CircularProgress size={16} sx={{ color: '#7c3aed' }} />
+                      <Typography variant="caption" color="text.secondary">Copilot reasoning...</Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                {/* Input Strip */}
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Ask about inventory, supplier delays, or inter-hub rebalancing..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSendMessage();
+                    }}
+                  />
+                  <IconButton
+                    color="primary"
+                    onClick={() => handleSendMessage()}
+                    disabled={chatLoading || !chatInput.trim()}
+                    sx={{ bgcolor: '#7c3aed', color: '#fff', '&:hover': { bgcolor: '#6d28d9' } }}
+                  >
+                    <Send fontSize="small" />
+                  </IconButton>
                 </Box>
               </CardContent>
             </Card>
           </Box>
 
-          {/* MINIMAL AI COPILOT INTERACTIVE CHAT */}
-          <Card elevation={0} sx={{ border: 1, borderColor: '#e2e8f0', borderRadius: 2 }}>
-            <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Psychology sx={{ color: '#7c3aed' }} />
-                  Supply Chain Orchestrator Copilot
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Natural Language Query Interface
-                </Typography>
-              </Box>
-
-              {/* Chat Stream */}
-              <Box
-                sx={{
-                  height: 140,
-                  overflowY: 'auto',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 1.5,
-                  p: 1.5,
-                  bgcolor: '#f8fafc',
-                  mb: 1.5,
-                }}
-              >
-                {chatHistory.slice(-4).map((item, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      mb: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: item.sender === 'user' ? 'flex-end' : 'flex-start',
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        px: 1.5,
-                        py: 0.8,
-                        borderRadius: 2,
-                        maxWidth: '90%',
-                        bgcolor: item.sender === 'user' ? '#7c3aed' : '#ffffff',
-                        color: item.sender === 'user' ? '#ffffff' : '#1e293b',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                        border: item.sender === 'user' ? 'none' : '1px solid #e2e8f0',
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontSize: '0.82rem' }}>
-                        {item.text}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
-                {chatLoading && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CircularProgress size={14} />
-                    <Typography variant="caption" color="text.secondary">
-                      Synthesizing multi-agent graph telemetry...
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-
-              {/* Quick Prompt Pills & Input Bar */}
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Ask a question (e.g. 'Why Vendor B for Milk?', 'Summary of network risks')..."
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-                />
-                <Button
-                  variant="contained"
-                  sx={{ bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' }, minWidth: 42, px: 2, borderRadius: 1.5 }}
-                  onClick={() => handleSendMessage()}
-                  disabled={chatLoading}
-                >
-                  <Send fontSize="small" />
-                </Button>
-              </Box>
-
-              {/* 1-Click Canned Prompts for Fast Demoing */}
-              <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.5 }}>
-                {[
-                  'Why Vendor B for Milk?',
-                  'Explain Yogurt demand spike',
-                  'Review Wheat lateral transfer',
-                  'Summary of network risks',
-                ].map((prompt, i) => (
-                  <Chip
-                    key={i}
-                    label={prompt}
-                    size="small"
-                    clickable
-                    onClick={() => handleSendMessage(prompt)}
-                    sx={{ bgcolor: '#f1f5f9', fontSize: '0.72rem', height: 22 }}
-                  />
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
+          {/* Model Settings Dialog */}
+          <Dialog open={openSettingsDialog} onClose={() => setOpenSettingsDialog(false)} maxWidth="sm" fullWidth>
+            <DialogTitle sx={{ fontWeight: 700 }}>AI Agent & LLM Configuration</DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Enter your Google Gemini API Key to enable live Gemini 2.5 Flash cognitive function calling and autonomous decisions. If left empty, Invenio runs on its deterministic quantitative solver.
+              </Typography>
+              <TextField
+                label="Google Gemini API Key"
+                type="password"
+                fullWidth
+                size="small"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="AIzaSy..."
+                sx={{ mb: 2 }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                Model: <b>gemini-2.5-flash</b> • Zero-latency tool execution enabled.
+              </Typography>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+              <Button onClick={() => setOpenSettingsDialog(false)}>Cancel</Button>
+              <Button variant="contained" onClick={handleSaveApiKey} sx={{ bgcolor: '#7c3aed' }}>
+                Save & Activate
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Box>
       </MainLayout>
     </ProtectedRoute>

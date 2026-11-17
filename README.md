@@ -10,7 +10,7 @@
 [![Material UI](https://img.shields.io/badge/MUI-v7-007FFF?style=for-the-badge&logo=mui&logoColor=white)](https://mui.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-Unified_Graph-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Google Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
-[![Tests](https://img.shields.io/badge/Pytest-8%2F8%20Passed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](tests/test_ps08_suite.py)
+[![Tests](https://img.shields.io/badge/Pytest-10%2F10%20Passed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
 
 **Course:** Agentic AI and Enterprise Applications (`NCMPEL64`) — VESIT Department of Computer Engineering  
 **Problem Statement:** `PS-08` — Logistics & Omnichannel Autonomous Supply Chain Optimization  
@@ -88,24 +88,24 @@ The system continuously tracks inventory across **three fulfillment nodes**:
 | **Agent 4** | `ReorderDecisionAgent` | Dynamic Volatility Safety Stock: $$SS = Z \cdot \sqrt{L \cdot \sigma_d^2 + \hat{d}^2 \cdot \sigma_L^2}$$ | Profit-aware EOQ / Newsvendor order quantity |
 | **Agent 5** | `VendorIntelligenceAgent` | Multi-criteria vendor scoring: Price, Delivery Speed, Reliability, On-Time %, and Bulk Discount Tiers | Optimal supplier selection + What-If delay routing |
 | **Agent 6** | `PurchaseOrderAgent` | Automated structured PO generation (`PO-1024` onwards) with priority & SLA deadlines | Structured PO records with full telemetry |
-| **Agent 7** | `WarehouseOptimizationAgent` | Solves lateral transshipment ($WH_A \to WH_B$) prior to external purchasing | Prevents stockouts internally; saves procurement capital |
+| **Agent 7** | `WarehouseOptimizationAgent` | Solves inter-hub stock shift ($WH_A \to WH_B$) prior to external purchasing | Prevents stockouts internally; saves procurement capital |
 | **Agent 8** | `AnomalyDetectionAgent` | Statistical Z-score demand burst detection ($|Z| > 2.8$) and physical audit vs ledger shrinkage | Root cause tagging (Promo spike vs theft/shrinkage) |
 | **Agent 9** | `CostOptimizationAgent` | Total Cost Optimization: $$TC = C_{\text{procurement}} + C_{\text{holding}} + C_{\text{penalty}}$$ | Net financial penalty protected |
 | **Agent 10** | `ReportingDashboardAgent`| Synthesizes network KPIs, stockout risk distribution, and projected SLA | Executive metrics & telemetry stream |
-| **Agent 11** | `SupplyChainOrchestrator`| Orchestrates closed loop (`Detect -> Decide -> Order -> Track -> Adjust`) via **Google Gemini 2.5 Flash** | Executive Brief & Autonomous Actions |
+| **Agent 11** | `SupplyChainOrchestrator`| Closed-loop Gemini 2.5 Flash cognitive tool calling + deterministic solver | Action execution & live audit feed |
 
 ---
 
 ## 🚀 Quick Start Guide
 
-### Option 1: 1-Click System Launcher (Windows)
+### Option 1: 1-Click Pre-Compiled Launcher (Windows)
 Double-click **`run_full_system.bat`** in the repository root.  
 This automatically:
 1. Starts the FastAPI Agentic Backend on `http://localhost:8000`
-2. Starts the Next.js Enterprise Web UI on `http://localhost:3000`
+2. Starts the **Pre-Compiled Production Next.js Server** on `http://localhost:3000` (sub-50ms instant page loads)
 3. Opens your default web browser to the dashboard
 
-*(Or run `powershell -ExecutionPolicy Bypass -File .\run_full_system.ps1`)*
+*(To run hot-reload development mode instead, double-click `run_dev_mode.bat`)*
 
 ---
 
@@ -153,24 +153,26 @@ python cli.py --export-json network_state.json
 
 ---
 
-## 🧪 Automated Verification Suite (8 Test Cases)
+## 🧪 Automated Verification Suite (10 Test Cases)
 
-The project includes an 8-case automated verification suite that validates each agent's decision logic against strict mathematical and operational boundaries:
+The project includes an automated test suite validating quantitative models, Gemini function calling, and multi-hub audit logging:
 
 ```powershell
-python -m pytest -v tests/test_ps08_suite.py
+python -m pytest -v tests/
 ```
 
 ```
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc01_milk_stockout_and_po_1024 PASSED             [ 12%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc02_rice_forecast_and_deficit PASSED             [ 25%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc03_warehouse_lateral_rebalancing PASSED         [ 37%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc04_anomaly_detection_demand_spike_and_shrinkage PASSED [ 50%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc05_dynamic_safety_stock_volatility_scaling PASSED [ 62%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc06_multi_vendor_delay_simulation PASSED         [ 75%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc07_bulk_discount_tier_optimization PASSED     [ 87%]
+tests/test_llm_agent_suite.py::TestLLMDecisionEngine::test_copilot_chat_local_intelligence PASSED     [ 10%]
+tests/test_llm_agent_suite.py::TestLLMDecisionEngine::test_deterministic_solver_with_audit_trail PASSED [ 20%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc01_milk_stockout_and_po_1024 PASSED             [ 30%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc02_rice_forecast_and_deficit PASSED             [ 40%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc03_warehouse_lateral_rebalancing PASSED         [ 50%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc04_anomaly_detection_demand_spike_and_shrinkage PASSED [ 60%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc05_dynamic_safety_stock_volatility_scaling PASSED [ 70%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc06_multi_vendor_delay_simulation PASSED         [ 80%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc07_bulk_discount_tier_optimization PASSED     [ 90%]
 tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc08_healthy_sku_zero_false_positive_po PASSED   [100%]
-=================================== 8 passed in 0.16s ====================================
+=================================== 10 passed in 0.16s ===================================
 ```
 
 ### Verified Benchmark Scenarios

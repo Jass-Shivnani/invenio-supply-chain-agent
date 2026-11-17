@@ -257,19 +257,20 @@ export default function PurchaseOrdersPage() {
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Button
               variant="outlined"
-              sx={{ borderColor: '#7c3aed', color: '#7c3aed', fontWeight: 600 }}
+              sx={{ borderColor: '#2563eb', color: '#2563eb', fontWeight: 600 }}
               startIcon={<AutoAwesome />}
               disabled={autoRestockMutation.isPending}
               onClick={() => autoRestockMutation.mutate()}
-              size="large"
+              size="medium"
             >
-              {autoRestockMutation.isPending ? 'Agents Sizing POs...' : 'AI Auto-Restock POs'}
+              {autoRestockMutation.isPending ? 'Agents Evaluating Suppliers...' : 'Authorize Autonomous Restock'}
             </Button>
             <Button
               variant="contained"
               startIcon={<Add />}
               onClick={() => handleOpenDialog()}
-              size="large"
+              size="medium"
+              sx={{ bgcolor: '#2563eb' }}
             >
               New Purchase Order
             </Button>
@@ -280,15 +281,15 @@ export default function PurchaseOrdersPage() {
         <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
           <TableContainer>
             <Table>
-              <TableHead>
+              <TableHead sx={{ bgcolor: '#f8fafc' }}>
                 <TableRow>
-                  <TableCell><strong>PO Number</strong></TableCell>
-                  <TableCell><strong>Date</strong></TableCell>
-                  <TableCell><strong>Expected Date</strong></TableCell>
-                  <TableCell><strong>Items</strong></TableCell>
-                  <TableCell align="right"><strong>Total Amount</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>PO Number & Product</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Supplier & SLA</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Order Qty</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Total Cost</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Agent Selection Rationale</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -297,43 +298,53 @@ export default function PurchaseOrdersPage() {
                     <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
                       <ShoppingCart sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
                       <Typography variant="body1" color="text.secondary">
-                        No purchase orders yet
+                        No purchase orders recorded yet
                       </Typography>
-                      <Button
-                        variant="outlined"
-                        startIcon={<Add />}
-                        onClick={() => handleOpenDialog()}
-                        sx={{ mt: 2 }}
-                      >
-                        Create First Purchase Order
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ) : (
                   (purchaseOrders as any[]).map((po: any) => (
                     <TableRow key={po.poId || po.poNumber} hover>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
-                          {po.poNumber}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {po.poNumber || po.poId}
+                          </Typography>
+                          {po.expectedProfitProtected > 0 && (
+                            <Chip label="Autonomous" size="small" color="primary" sx={{ fontSize: '0.65rem', height: 18, fontWeight: 700 }} />
+                          )}
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {po.productName || po.items?.[0]?.productName || 'Stock Reorder'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
-                          {new Date(po.date).toLocaleDateString('en-IN')}
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {po.vendorName || 'Direct Supplier'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {po.deliveryDeadlineDays ? `${po.deliveryDeadlineDays}d Lead Time SLA` : 'Standard SLA'}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {new Date(po.expectedDate).toLocaleDateString('en-IN')}
+                      <TableCell align="center">
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {po.quantity || po.items?.[0]?.quantity || 100} units
                         </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={`${po.itemsCount} items`} size="small" />
                       </TableCell>
                       <TableCell align="right">
-                        <Typography variant="body2" fontWeight={600} color="primary.main">
-                          ₹{po.totalAmount.toFixed(2)}
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: '#1e40af' }}>
+                          ₹{Number(po.totalAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </Typography>
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 320 }}>
+                        <Typography variant="caption" sx={{ color: '#475569', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {po.notes || 'Autonomous order generated by multi-constraint vendor scoring.'}
+                        </Typography>
+                        {po.expectedProfitProtected > 0 && (
+                          <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600, display: 'block' }}>
+                            ✓ Defended ₹{Number(po.expectedProfitProtected).toLocaleString('en-IN')} in stockout penalties
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         {po.status === 'received' ? (
@@ -342,13 +353,15 @@ export default function PurchaseOrdersPage() {
                             label="Received"
                             size="small"
                             color="success"
+                            sx={{ fontWeight: 600, fontSize: '0.72rem' }}
                           />
                         ) : (
                           <Chip
                             icon={<Pending fontSize="small" />}
-                            label="Pending"
+                            label="Pending Delivery"
                             size="small"
                             color="warning"
+                            sx={{ fontWeight: 600, fontSize: '0.72rem' }}
                           />
                         )}
                       </TableCell>
@@ -361,6 +374,7 @@ export default function PurchaseOrdersPage() {
                               color="success"
                               startIcon={<Inventory fontSize="small" />}
                               onClick={() => handleReceivePO(po)}
+                              sx={{ fontSize: '0.75rem', fontWeight: 600 }}
                             >
                               Receive
                             </Button>

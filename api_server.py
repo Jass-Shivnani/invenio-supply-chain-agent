@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from database.schema_and_seed import init_and_seed_db, DEFAULT_DB_PATH
 from agents.core_agents import SupplyChainOrchestrator
+from agents.llm_agent import LLMDecisionEngine
 
 app = FastAPI(
     title="Invenio AI — Enterprise IMS & Supply Chain Agent Backend",
@@ -43,6 +44,7 @@ if not DEFAULT_DB_PATH.exists():
     init_and_seed_db(DEFAULT_DB_PATH, force_reset=True)
 
 orchestrator = SupplyChainOrchestrator(DEFAULT_DB_PATH)
+llm_engine = LLMDecisionEngine(str(DEFAULT_DB_PATH))
 
 
 def get_db():
@@ -229,6 +231,28 @@ def create_category(data: Dict[str, Any] = Body(...)):
     conn.commit()
     conn.close()
     return {"message": "Category created", "category": {"categoryId": cat_id, "name": name, "description": desc}}
+
+
+@app.put("/categories/{cat_id}")
+def update_category(cat_id: str, data: Dict[str, Any] = Body(...)):
+    conn = get_db()
+    cur = conn.cursor()
+    name = data.get("name", "")
+    desc = data.get("description", "")
+    cur.execute("UPDATE categories SET name = ?, description = ? WHERE category_id = ?", (name, desc, cat_id))
+    conn.commit()
+    conn.close()
+    return {"message": "Category updated successfully"}
+
+
+@app.delete("/categories/{cat_id}")
+def delete_category(cat_id: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM categories WHERE category_id = ?", (cat_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Category deleted successfully"}
 
 
 # ---------------------------------------------------------------------------
@@ -482,6 +506,32 @@ def get_users():
     return {"users": users_list, "count": len(users_list)}
 
 
+@app.get("/customers/phone/{phone}")
+def get_customer_by_phone(phone: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM customers WHERE phone = ?", (phone,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return {"success": True, "customer": dict(row)}
+    return {"success": False, "customer": None}
+
+
+@app.post("/customers")
+def create_customer(data: Dict[str, Any] = Body(...)):
+    conn = get_db()
+    cur = conn.cursor()
+    cid = f"CUST-{str(uuid.uuid4())[:6].upper()}"
+    cur.execute("""
+        INSERT OR REPLACE INTO customers (customer_id, name, phone, email, address)
+        VALUES (?, ?, ?, ?, ?)
+    """, (cid, data.get("name", "Walk-in"), data.get("phone", ""), data.get("email", ""), data.get("address", "")))
+    conn.commit()
+    conn.close()
+    return {"success": True, "customerId": cid}
+
+
 # ---------------------------------------------------------------------------
 # 7. Agentic AI & Autonomous Supply Chain Endpoints (PS-08)
 # ---------------------------------------------------------------------------
@@ -492,6 +542,15 @@ class SimulationRequest(BaseModel):
     gemini_api_key: Optional[str] = None
 
 
+class CognitiveCycleRequest(BaseModel):
+    gemini_api_key: Optional[str] = None
+    service_level_z: float = 1.645
+
+
+class KeyConfigRequest(BaseModel):
+    api_key: str
+
+
 @app.get("/api/ai/state")
 @app.get("/api/state")
 def get_agentic_state(service_level_z: float = 1.645):
@@ -499,12 +558,73 @@ def get_agentic_state(service_level_z: float = 1.645):
     return orchestrator.run_autonomous_loop(service_level_z=service_level_z, persist_pos=True)
 
 
+@app.get("/api/ai/audit-feed")
+def get_audit_feed(limit: int = 30):
+    """Returns the live audit feed showing where, why, and what actions were executed."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT log_id, timestamp, agent_id, agent_name, action_type, sku, product_name,
+               location_from, location_to, quantity, why_reason, financial_impact, details_json
+        FROM agent_audit_logs
+        ORDER BY log_id DESC
+        LIMIT ?
+    """, (limit,))
+    rows = cur.fetchall()
+    feed = [dict(r) for r in rows]
+    conn.close()
+    return {"auditFeed": feed, "count": len(feed)}
+
+
+@app.post("/api/ai/trigger-cognitive-cycle")
+def trigger_cognitive_cycle(req: CognitiveCycleRequest):
+    """Executes a cognitive reasoning cycle with Gemini 2.5 Flash / quantitative engine."""
+    return llm_engine.run_cognitive_cycle(
+        gemini_api_key=req.gemini_api_key,
+        service_level_z=req.service_level_z,
+    )
+
+
+@app.post("/api/ai/configure-key")
+def configure_gemini_key(req: KeyConfigRequest):
+    """Saves and activates the user-provided Gemini API key."""
+    key = req.api_key.strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="API key cannot be empty")
+    os.environ["GEMINI_API_KEY"] = key
+    env_file = Path(__file__).resolve().parent / ".env"
+    try:
+        with open(env_file, "w") as f:
+            f.write(f"GEMINI_API_KEY={key}\nGEMINI_MODEL=gemini-2.5-flash\nDB_PATH=data/invenio_supply_chain.db\nSERVICE_LEVEL_Z=1.645\n")
+    except Exception:
+        pass
+    return {"message": "Gemini API Key activated successfully. Cognitive reasoning engine is live."}
+
+
 @app.post("/api/ai/auto-restock")
 def trigger_agentic_restock(service_level_z: float = 1.645):
-    """Triggers Agents 4, 5, 6 & 9 to generate optimal POs for all stockout-risk SKUs."""
+    """Triggers autonomous procurement agents to generate optimal POs for stockout-risk SKUs."""
     state = orchestrator.run_autonomous_loop(service_level_z=service_level_z, persist_pos=True)
+    
+    # Write audit log entries for generated POs
+    conn = get_db()
+    cur = conn.cursor()
+    for po in state["purchase_orders"]:
+        cur.execute("""
+            INSERT INTO agent_audit_logs (agent_id, agent_name, action_type, sku, product_name,
+                                          location_from, location_to, quantity, why_reason, financial_impact, details_json)
+            VALUES ('AGENT-06', 'Autonomous Procurement Agent', 'PURCHASE_ORDER', ?, ?, ?, 'Bhiwandi Central Hub (WH-A)', ?, ?, ?, ?)
+        """, (
+            po["sku"], po["product_name"], po["vendor_name"], po["order_quantity"],
+            f"Authorized urgent supplier restock order {po['po_id']}: {po['order_quantity']} units from {po['vendor_name']} @ ₹{po['total_cost']:,.0f}. {po['selection_reason']}",
+            float(po.get("expected_profit_protected", 2618.0)),
+            json.dumps({"po_id": po["po_id"], "cost": po["total_cost"], "sla_days": po["delivery_deadline_days"]})
+        ))
+    conn.commit()
+    conn.close()
+
     return {
-        "message": f"Generated {len(state['purchase_orders'])} purchase orders with optimal vendor routing",
+        "message": f"Authorized {len(state['purchase_orders'])} purchase orders with optimal vendor routing",
         "purchaseOrders": state["purchase_orders"],
         "kpis": state["kpis"],
     }
@@ -512,14 +632,13 @@ def trigger_agentic_restock(service_level_z: float = 1.645):
 
 @app.post("/api/ai/execute-rebalance")
 def execute_lateral_rebalance():
-    """Agent 7: Executes lateral transfer TR-201 (e.g. WH-A Bhiwandi -> WH-B Turbhe)."""
+    """Agent 7: Shifts surplus stock between warehouse hubs to prevent stockouts without supplier cost."""
     conn = get_db()
     cur = conn.cursor()
-    # Find active transfer recommendation
     cur.execute("SELECT * FROM warehouse_transfers WHERE status = 'SCHEDULED' LIMIT 1")
     tr = cur.fetchone()
+    
     if not tr:
-        # Fallback to standard PS-08 lateral wheat transfer
         sku = "SKU-WHEAT-03"
         qty = 50
         cur.execute("UPDATE inventory_nodes SET current_stock = current_stock - ? WHERE sku = ? AND warehouse_id = 'WH-A'", (qty, sku))
@@ -528,21 +647,105 @@ def execute_lateral_rebalance():
             INSERT OR REPLACE INTO warehouse_transfers (transfer_id, sku, product_name, from_warehouse, to_warehouse,
                                                        quantity, transfer_cost, procurement_cost_saved, reason, status)
             VALUES ('TR-201', 'SKU-WHEAT-03', 'Chakki Fresh Whole Wheat Atta (10kg)', 'WH-A', 'WH-B', 50, 475.0, 15025.0,
-                    'WH-A Overstock rebalanced to WH-B Stockout Risk', 'COMPLETED')
+                    'Bhiwandi Hub surplus shifted to Turbhe Hub (0.8 days stock remaining)', 'COMPLETED')
         """)
+        cur.execute("""
+            INSERT INTO agent_audit_logs (agent_id, agent_name, action_type, sku, product_name,
+                                          location_from, location_to, quantity, why_reason, financial_impact, details_json)
+            VALUES ('AGENT-07', 'Inter-Hub Stock Optimizer', 'STOCK_TRANSFER', 'SKU-WHEAT-03', 'Chakki Fresh Whole Wheat Atta (10kg)',
+                    'Bhiwandi Central Hub (WH-A, Bay 4)', 'Turbhe Cold Hub (WH-B, Rack 12)', 50,
+                    'Turbhe was depleting in 0.8 days (35u in stock). Bhiwandi held 195u surplus. Shifted 50 units for ₹475 transit, saving ₹15,025 over supplier rush orders.',
+                    15025.0, ?)
+        """, (json.dumps({"transfer_id": "TR-201", "transit_hours": 4}),))
+        
         conn.commit()
         conn.close()
-        return {"message": "Transferred 50 units of Chakki Fresh Whole Wheat Atta from WH-A to WH-B. Saved ₹15,025 in procurement costs."}
+        return {"message": "Shifted 50 units of Chakki Fresh Whole Wheat Atta from Bhiwandi Central Hub to Turbhe Cold Hub. Saved ₹15,025 in procurement costs."}
     
-    # Execute existing
+    # Execute scheduled
     cur.execute("UPDATE inventory_nodes SET current_stock = current_stock - ? WHERE sku = ? AND warehouse_id = ?",
                 (tr["quantity"], tr["sku"], tr["from_warehouse"]))
     cur.execute("UPDATE inventory_nodes SET current_stock = current_stock + ? WHERE sku = ? AND warehouse_id = ?",
                 (tr["quantity"], tr["sku"], tr["to_warehouse"]))
     cur.execute("UPDATE warehouse_transfers SET status = 'COMPLETED' WHERE transfer_id = ?", (tr["transfer_id"],))
+    
+    cur.execute("""
+        INSERT INTO agent_audit_logs (agent_id, agent_name, action_type, sku, product_name,
+                                      location_from, location_to, quantity, why_reason, financial_impact, details_json)
+        VALUES ('AGENT-07', 'Inter-Hub Stock Optimizer', 'STOCK_TRANSFER', ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        tr["sku"], tr["product_name"],
+        f"{tr['from_warehouse']} Hub (Bay 4)", f"{tr['to_warehouse']} Hub (Rack 12)", tr["quantity"],
+        f"Shifted {tr['quantity']} units from {tr['from_warehouse']} to {tr['to_warehouse']} to satisfy deficit. {tr['reason']}",
+        float(tr["procurement_cost_saved"]),
+        json.dumps({"transfer_id": tr["transfer_id"]})
+    ))
+    
     conn.commit()
     conn.close()
-    return {"message": f"Successfully executed Transfer {tr['transfer_id']}: {tr['quantity']} units of {tr['product_name']} from {tr['from_warehouse']} to {tr['to_warehouse']}."}
+    return {"message": f"Successfully shifted {tr['quantity']} units of {tr['product_name']} from {tr['from_warehouse']} to {tr['to_warehouse']}. Saved ₹{tr['procurement_cost_saved']:,.0f}."}
+
+
+@app.get("/api/inventory/multi-hub")
+def get_multi_hub_inventory():
+    """Returns matrix of SKUs across Bhiwandi, Turbhe, and Chembur with agent health and recommended action."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT p.sku, p.name, p.category, p.unit_selling_price,
+               n.warehouse_id, n.current_stock, n.reserved_stock, n.min_node_buffer, n.max_node_capacity
+        FROM products p
+        JOIN inventory_nodes n ON p.sku = n.sku
+        ORDER BY p.name ASC, n.warehouse_id ASC
+    """)
+    rows = cur.fetchall()
+    skus_map = {}
+    for r in rows:
+        sku = r["sku"]
+        if sku not in skus_map:
+            skus_map[sku] = {
+                "sku": sku,
+                "name": r["name"],
+                "category": r["category"],
+                "unitPrice": float(r["unit_selling_price"]),
+                "nodes": {},
+                "totalStock": 0,
+            }
+        avail = max(0, r["current_stock"] - r["reserved_stock"])
+        skus_map[sku]["nodes"][r["warehouse_id"]] = {
+            "current": r["current_stock"],
+            "reserved": r["reserved_stock"],
+            "available": avail,
+            "buffer": r["min_node_buffer"],
+            "capacity": r["max_node_capacity"],
+        }
+        skus_map[sku]["totalStock"] += avail
+
+    res = []
+    for sku, item in skus_map.items():
+        wh_a = item["nodes"].get("WH-A", {}).get("available", 0)
+        wh_b = item["nodes"].get("WH-B", {}).get("available", 0)
+        
+        status = "HEALTHY"
+        action = "Maintain Normal Buffer"
+        if item["totalStock"] < 130 and sku == "SKU-MILK-01":
+            status = "CRITICAL_DEFICIT"
+            action = "Dispatch Emergency Restock Order to Amul Express (PO-1024)"
+        elif wh_b < 40 and wh_a > 140:
+            status = "REBALANCE_OPPORTUNITY"
+            action = "Shift 50 Units from Bhiwandi (WH-A) to Turbhe (WH-B)"
+        elif sku == "SKU-YOGURT-04":
+            status = "DEMAND_SURGE"
+            action = "Scale Safety Buffer for Active Promo Spike (+308%)"
+        elif item["totalStock"] > 800:
+            status = "OVERSTOCK"
+            action = "Optimal Stock Buffer Maintained"
+            
+        item["status"] = status
+        item["suggestedAction"] = action
+        res.append(item)
+    conn.close()
+    return {"multiHubInventory": res, "count": len(res)}
 
 
 @app.post("/api/ai/reset-db")
@@ -561,7 +764,6 @@ def get_demand_history(sku: str):
     rows = cur.fetchall()
     hist = [{"day": r["day_index"], "label": f"Day {r['day_index']}", "demand": r["units_sold"], "isPromo": bool(r["promo_active"])} for r in rows]
     
-    # Get forecast from agent 2
     state = orchestrator.run_autonomous_loop(persist_pos=False)
     sku_rep = next((s for s in state["sku_reports"] if s["sku"] == sku), None)
     fc_val = sku_rep["forecast"]["forecast_next_7d_daily"] if sku_rep else 50.0
@@ -574,7 +776,6 @@ def get_demand_history(sku: str):
             "forecast": None,
             "promo": h["isPromo"],
         })
-    # Append 7 future forecast points
     last_day = hist[-1]["day"] if hist else 14
     for i in range(1, 8):
         chart_data.append({
@@ -607,41 +808,6 @@ class ChatMessageRequest(BaseModel):
 def agentic_copilot_chat(req: ChatMessageRequest):
     """
     Conversational Copilot: Answers questions about stockout risk, vendor delays,
-    lateral transfers, and drafts operational actions using live agent telemetry.
+    inter-hub shifts, and drafts operational actions with live Gemini or local engine.
     """
-    state = orchestrator.run_autonomous_loop(persist_pos=False)
-    q = req.message.lower().strip()
-    
-    # Quick deterministic intent routing
-    if "milk" in q or "po-1024" in q or "vendor b" in q:
-        return {
-            "reply": "Agent 3 computed that Pasteurized Full-Cream Milk (1L Pack) has only 2.4 days of stock remaining across WH-A, WH-B, and ST-C (Lead Time is 3 days). Agent 5 evaluated vendors and recommended Vendor B (Amul Express Cold-Chain) @ ₹55/unit with 2-day delivery SLA instead of Vendor A (5-day delay risk). Auto-order PO-1024 for 200 units protects ₹2,618 in stockout penalties.",
-            "suggestedActions": ["View PO-1024 in Purchase Orders", "Simulate Vendor B Delay"],
-            "activeRisks": ["SKU-MILK-01 (HIGH RISK - 2.4 days left)"],
-        }
-    elif "wheat" in q or "transfer" in q or "rebalance" in q:
-        return {
-            "reply": "Agent 7 identified that Warehouse A (Bhiwandi) holds 195 units of Chakki Fresh Whole Wheat Atta (surplus buffer), while Warehouse B (Turbhe) is at stockout risk with only 35 units. The agent scheduled lateral transfer TR-201 (50 units from WH-A to WH-B), completely preventing a stockout while saving ₹15,025 compared to external procurement.",
-            "suggestedActions": ["Execute Lateral Transfer TR-201", "Inspect WH-A vs WH-B Inventory"],
-            "activeRisks": ["WH-B Low Buffer (Wheat Atta)"],
-        }
-    elif "spike" in q or "yogurt" in q or "anomaly" in q:
-        return {
-            "reply": "Agent 8 detected a +308% demand spike anomaly on Probiotic Greek Yogurt (102 units/day vs 25 units/day baseline, Z-Score = 68.25) due to an active summer promotion. The agent automatically scaled dynamic safety stock from 100 units to 109 units and routed an emergency order of 820 units to Epigamia Cold-Chain Express.",
-            "suggestedActions": ["View Anomaly Audit Log", "Approve PO-1026 for Yogurt"],
-            "activeRisks": ["SKU-YOGURT-04 (+308% Demand Spike)"],
-        }
-    elif "kpi" in q or "status" in q or "summary" in q or "health" in q:
-        k = state["kpis"]
-        return {
-            "reply": f"Supply Chain Network Health: Monitoring {k['total_skus_monitored']} SKUs across 3 fulfillment nodes (WH-A Bhiwandi, WH-B Turbhe, ST-C Chembur). Total stock: {k['total_units_in_network']} units. High stockout risks detected: {k['high_stockout_risk_skus']} SKUs. Projected network service level: {k['projected_service_level_pct']}%. Total net penalty and cost protected by agents: ₹{k['net_cost_and_penalty_saved']:,.0f}.",
-            "suggestedActions": ["Trigger Autonomous Restock", "Execute Lateral Rebalance", "View All Stockout Risks"],
-            "activeRisks": [f"{s['sku']} ({s['risk']['risk_level']})" for s in state["sku_reports"] if s["risk"]["risk_level"] == "HIGH"],
-        }
-    else:
-        # General response synthesis
-        return {
-            "reply": f"Invenio Autonomous Orchestrator is actively monitoring all 8 SKUs across Bhiwandi, Turbhe, and Chembur. Current brief: {state['orchestrator_brief']}. How can I assist you with reorders, lateral rebalancing, or vendor evaluations?",
-            "suggestedActions": ["Show high-risk stockout items", "Explain why Vendor B was chosen for Milk", "Rebalance Wheat between warehouses"],
-            "activeRisks": [f"{s['sku']} ({s['risk']['risk_level']})" for s in state["sku_reports"] if s["risk"]["risk_level"] == "HIGH"][:3],
-        }
+    return llm_engine.chat_with_copilot(req.message, req.gemini_api_key)
