@@ -228,6 +228,7 @@ export default function CreateInvoicePage() {
       customerEmail,
       customerPhone,
       customerAddress,
+      total,
       items: items.map((item) => ({
         productId: item.productId,
         productName: item.productName,

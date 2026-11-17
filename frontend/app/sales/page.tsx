@@ -52,8 +52,10 @@ export default function SalesPage() {
     queryFn: () => invoicesAPI.getAll().then((res) => res.data),
   });
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Today';
+    const d = new Date(dateString);
+    return isNaN(d.getTime()) ? 'Today' : d.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -412,7 +414,7 @@ export default function SalesPage() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {formatDate(invoice.createdAt)}
+                          {formatDate(invoice.date || invoice.createdAt)}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">

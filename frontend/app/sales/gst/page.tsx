@@ -409,6 +409,7 @@ export default function CreateGSTInvoicePage() {
       customerAddress,
       customerPhone,
       customerEmail,
+      total: roundedTotal,
       items: items.map((item) => ({
         productId: item.productId,
         productName: item.productName,

@@ -340,7 +340,7 @@ function DashboardContent() {
                 <Typography variant="h6" fontWeight={600}>
                   Recent Invoices
                 </Typography>
-                <Button size="small" endIcon={<ArrowForward />} href="/invoices">
+                <Button size="small" endIcon={<ArrowForward />} href="/sales">
                   View All
                 </Button>
               </Box>
@@ -390,7 +390,7 @@ function DashboardContent() {
                   <Typography color="text.secondary">
                     No invoices yet. Create your first invoice!
                   </Typography>
-                  <Button variant="contained" sx={{ mt: 2 }} href="/invoices/create">
+                  <Button variant="contained" sx={{ mt: 2 }} href="/sales/non-gst">
                     Create Invoice
                   </Button>
                 </Box>

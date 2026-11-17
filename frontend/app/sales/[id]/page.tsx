@@ -42,8 +42,10 @@ export default function InvoiceDetailPage() {
   console.log('Invoice response:', response);
   console.log('Invoice data:', invoice);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Today';
+    const d = new Date(dateString);
+    return isNaN(d.getTime()) ? 'Today' : d.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -266,7 +268,7 @@ export default function InvoiceDetailPage() {
                   <strong>Invoice #:</strong> {invoice.invoiceNumber}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Date:</strong> {formatDate(invoice.createdAt)}
+                  <strong>Date:</strong> {formatDate(invoice.date || invoice.createdAt)}
                 </Typography>
                 <Chip
                   label={invoice.status}

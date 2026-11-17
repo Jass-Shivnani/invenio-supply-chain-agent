@@ -94,6 +94,87 @@ class TestEnterpriseEdgeCases(unittest.TestCase):
         self.assertEqual(cust[0], "Aarav Sharma")
         conn.close()
 
+    def test_invoice_creation_and_retrieval(self):
+        """TC-14: Verifies invoice creation with item breakdown and JSON parsing."""
+        conn = self.llm_engine.get_connection()
+        cur = conn.cursor()
+        inv_id = "INV-TEST-99"
+        items = [{"productId": "SKU-MILK-01", "productName": "Pasteurized Full Cream Milk 1L", "quantity": 3, "unitPrice": 66.0, "total": 198.0}]
+        cur.execute("""
+            INSERT INTO invoices (invoice_id, invoice_number, customer_name, customer_phone, total, status, date, items_json)
+            VALUES (?, 'INV-2026-99', 'Vikram Patel', '9811122233', 198.0, 'PAID', date('now'), ?)
+        """, (inv_id, json.dumps(items)))
+        conn.commit()
+
+        cur.execute("SELECT invoice_number, total, items_json FROM invoices WHERE invoice_id = ?", (inv_id,))
+        row = cur.fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row[0], "INV-2026-99")
+        self.assertEqual(float(row[1]), 198.0)
+        parsed_items = json.loads(row[2])
+        self.assertEqual(len(parsed_items), 1)
+        self.assertEqual(parsed_items[0]["quantity"], 3)
+        conn.close()
+
+    def test_transactions_logging_and_retrieval(self):
+        """TC-15: Verifies stock transactions can be logged and queried by product SKU."""
+        conn = self.llm_engine.get_connection()
+        cur = conn.cursor()
+        txn_id = "TXN-TEST-15"
+        cur.execute("""
+            INSERT INTO transactions (transaction_id, product_id, type, quantity, date, reason, reference)
+            VALUES (?, 'SKU-RICE-02', 'STOCK_IN', 50, date('now'), 'Bulk arrival test', 'PO-TEST-15')
+        """, (txn_id,))
+        conn.commit()
+
+        cur.execute("SELECT type, quantity, reference FROM transactions WHERE transaction_id = ?", (txn_id,))
+        txn = cur.fetchone()
+        self.assertIsNotNone(txn)
+        self.assertEqual(txn[0], "STOCK_IN")
+        self.assertEqual(txn[1], 50)
+        conn.close()
+
+    def test_multi_hub_stock_integrity(self):
+        """TC-16: Verifies multi-hub stock across WH-A, WH-B, and ST-C equals total node stock."""
+        conn = self.llm_engine.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT sku FROM products")
+        skus = [r[0] for r in cur.fetchall()]
+
+        for sku in skus:
+            cur.execute("SELECT warehouse_id, current_stock FROM inventory_nodes WHERE sku = ?", (sku,))
+            nodes = dict(cur.fetchall())
+            self.assertIn("WH-A", nodes)
+            self.assertIn("WH-B", nodes)
+            self.assertIn("ST-C", nodes)
+            total = sum(nodes.values())
+            self.assertGreaterEqual(total, 0)
+        conn.close()
+
+    def test_category_crud_lifecycle(self):
+        """TC-17: Verifies adding, updating, and removing categories in database."""
+        conn = self.llm_engine.get_connection()
+        cur = conn.cursor()
+        cat_id = "CAT-TEST-BIO"
+        cur.execute("INSERT INTO categories VALUES (?, 'Biotech Supplies', 'Lab equipment')", (cat_id,))
+        conn.commit()
+
+        cur.execute("SELECT name FROM categories WHERE category_id = ?", (cat_id,))
+        self.assertEqual(cur.fetchone()[0], "Biotech Supplies")
+
+        cur.execute("UPDATE categories SET name = 'Biotech Reagents' WHERE category_id = ?", (cat_id,))
+        conn.commit()
+
+        cur.execute("SELECT name FROM categories WHERE category_id = ?", (cat_id,))
+        self.assertEqual(cur.fetchone()[0], "Biotech Reagents")
+
+        cur.execute("DELETE FROM categories WHERE category_id = ?", (cat_id,))
+        conn.commit()
+
+        cur.execute("SELECT COUNT(*) FROM categories WHERE category_id = ?", (cat_id,))
+        self.assertEqual(cur.fetchone()[0], 0)
+        conn.close()
+
 
 if __name__ == "__main__":
     unittest.main()

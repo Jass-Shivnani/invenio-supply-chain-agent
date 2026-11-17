@@ -458,15 +458,72 @@ def get_invoices():
     return {"invoices": invs, "count": len(invs)}
 
 
+@app.get("/invoices/{invoice_id}")
+def get_invoice_detail(invoice_id: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM invoices WHERE invoice_id = ? OR invoice_number = ?", (invoice_id, invoice_id))
+    r = cur.fetchone()
+    conn.close()
+    if not r:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    raw_items = json.loads(r["items_json"]) if r["items_json"] else []
+    enriched_items = []
+    for it in raw_items:
+        qty = int(it.get("quantity", 1))
+        up = float(it.get("unitPrice", it.get("price", it.get("rate", 0))))
+        tot = float(it.get("total", qty * up))
+        enriched_items.append({
+            "productId": it.get("productId", ""),
+            "productName": it.get("productName", ""),
+            "quantity": qty,
+            "unitPrice": up,
+            "total": tot,
+        })
+    subtotal = sum(i["total"] for i in enriched_items)
+
+    inv_dict = {
+        "invoiceId": r["invoice_id"],
+        "invoiceNumber": r["invoice_number"],
+        "customerName": r["customer_name"],
+        "customerPhone": r["customer_phone"],
+        "customerEmail": "customer@invenio.in",
+        "customerAddress": "Chembur Commercial District, Mumbai",
+        "total": float(r["total"]),
+        "subtotal": subtotal,
+        "tax": 0.0,
+        "taxRate": 0,
+        "discount": 0.0,
+        "status": r["status"],
+        "date": r["date"],
+        "createdAt": r["date"],
+        "items": enriched_items,
+        "template": {
+            "companyName": "Invenio Retail & Multi-Hub Logistics",
+            "companyAddress": "Shop 12, Chembur Central, Mumbai - 400071",
+            "companyEmail": "billing@invenio.in",
+            "companyPhone": "+91 (022) 2522-8900",
+        },
+    }
+    return {"invoice": inv_dict}
+
+
 @app.post("/invoices")
 def create_invoice(data: Dict[str, Any] = Body(...)):
-    """Records a sale invoice and deducts stock from Store C / WH-A!"""
+    """Records a sale invoice and deducts stock from Store C / WH-A with real ledger tracking!"""
     conn = get_db()
     cur = conn.cursor()
     inv_id = f"INV-{str(uuid.uuid4())[:6].upper()}"
     inv_num = data.get("invoiceNumber") or inv_id
-    total = float(data.get("total") or 0.0)
     items = data.get("items", [])
+
+    total = float(data.get("total") or 0.0)
+    if total == 0.0 and items:
+        sub = sum(float(it.get("unitPrice", it.get("price", 0))) * int(it.get("quantity", 1)) for it in items)
+        tax_rate = float(data.get("taxRate", 0))
+        discount = float(data.get("discount", 0))
+        total = round(sub + (sub * tax_rate / 100.0) - (sub * discount / 100.0), 2)
 
     cur.execute("""
         INSERT INTO invoices (invoice_id, invoice_number, customer_name, customer_phone, total, status, date, items_json)
@@ -474,24 +531,44 @@ def create_invoice(data: Dict[str, Any] = Body(...)):
     """, (inv_id, inv_num, data.get("customerName", "Walk-in Customer"), data.get("customerPhone", ""),
           total, json.dumps(items)))
 
-    # Deduct stock for each sold product
+    # Deduct stock for each sold product realistically across nodes
     for it in items:
         sku = it.get("productId") or it.get("sku")
         qty = int(it.get("quantity", 1))
+        pname = it.get("productName", sku)
         if sku:
-            cur.execute("""
-                UPDATE inventory_nodes
-                SET current_stock = MAX(0, current_stock - ?)
-                WHERE sku = ? AND warehouse_id = 'ST-C'
-            """, (qty, sku))
+            cur.execute("SELECT current_stock FROM inventory_nodes WHERE sku = ? AND warehouse_id = 'ST-C'", (sku,))
+            row_c = cur.fetchone()
+            curr_c = row_c[0] if row_c else 0
+            if curr_c >= qty:
+                cur.execute("UPDATE inventory_nodes SET current_stock = current_stock - ? WHERE sku = ? AND warehouse_id = 'ST-C'", (qty, sku))
+            else:
+                rem = qty - curr_c
+                cur.execute("UPDATE inventory_nodes SET current_stock = 0 WHERE sku = ? AND warehouse_id = 'ST-C'", (sku,))
+                cur.execute("UPDATE inventory_nodes SET current_stock = MAX(0, current_stock - ?) WHERE sku = ? AND warehouse_id = 'WH-A'", (rem, sku))
+
             cur.execute("""
                 INSERT INTO transactions (transaction_id, product_id, type, quantity, date, reason, reference)
                 VALUES (?, ?, 'STOCK_OUT', ?, date('now'), 'Sale POS Checkout', ?)
             """, (f"TXN-{str(uuid.uuid4())[:8].upper()}", sku, qty, inv_id))
 
+    # Also log an operational audit entry for the POS checkout
+    cur.execute("""
+        INSERT INTO agent_audit_logs
+        (timestamp, agent_id, agent_name, action_type, sku, product_name, location_from, location_to, quantity, why_reason, financial_impact, details_json)
+        VALUES (datetime('now'), 'AGT-POS', 'Retail Checkout Agent', 'STOCK_DISPATCH', ?, ?, 'ST-C (Chembur Store)', 'Customer Direct', ?, ?, ?, ?)
+    """, (
+        items[0].get("productId", "MULTI") if items else "GENERAL",
+        items[0].get("productName", "Retail Item") if items else "POS Order",
+        sum(int(it.get("quantity", 1)) for it in items),
+        f"Retail POS customer order {inv_num} fulfilled at Chembur counter.",
+        f"+₹{total:,.2f} Revenue Collected",
+        json.dumps({"invoice_id": inv_id, "invoice_number": inv_num, "items_count": len(items), "total": total})
+    ))
+
     conn.commit()
     conn.close()
-    return {"message": "Invoice created and stock updated", "invoiceId": inv_id}
+    return {"message": "Invoice created and stock updated", "invoiceId": inv_id, "total": total}
 
 
 @app.get("/transactions")
@@ -503,6 +580,36 @@ def get_transactions():
     txns = [dict(r) for r in rows]
     conn.close()
     return {"transactions": txns, "count": len(txns)}
+
+
+@app.get("/transactions/{product_id}")
+def get_transactions_by_product(product_id: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM transactions WHERE product_id = ? ORDER BY created_at DESC", (product_id,))
+    rows = cur.fetchall()
+    txns = [dict(r) for r in rows]
+    conn.close()
+    return {"transactions": txns, "count": len(txns)}
+
+
+@app.post("/transactions")
+def create_transaction(data: Dict[str, Any] = Body(...)):
+    conn = get_db()
+    cur = conn.cursor()
+    txn_id = f"TXN-{str(uuid.uuid4())[:8].upper()}"
+    p_id = data.get("productId") or data.get("sku") or "GENERAL"
+    t_type = data.get("type", "STOCK_ADJUSTMENT")
+    qty = int(data.get("quantity", 0))
+    reason = data.get("notes") or data.get("reason", "Manual Transaction")
+    ref = data.get("reference", "MANUAL")
+    cur.execute("""
+        INSERT INTO transactions (transaction_id, product_id, type, quantity, date, reason, reference)
+        VALUES (?, ?, ?, ?, date('now'), ?, ?)
+    """, (txn_id, p_id, t_type, qty, reason, ref))
+    conn.commit()
+    conn.close()
+    return {"message": "Transaction created successfully", "transactionId": txn_id}
 
 
 @app.get("/users")
