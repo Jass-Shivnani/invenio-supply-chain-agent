@@ -10,7 +10,7 @@
 [![Material UI](https://img.shields.io/badge/MUI-v7-007FFF?style=for-the-badge&logo=mui&logoColor=white)](https://mui.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-Unified_Graph-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Google Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
-[![Tests](https://img.shields.io/badge/Pytest-10%2F10%20Passed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/Pytest-15%2F15%20Passed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
 
 **Course:** Agentic AI and Enterprise Applications (`NCMPEL64`) — VESIT Department of Computer Engineering  
 **Problem Statement:** `PS-08` — Logistics & Omnichannel Autonomous Supply Chain Optimization  
@@ -153,26 +153,31 @@ python cli.py --export-json network_state.json
 
 ---
 
-## 🧪 Automated Verification Suite (10 Test Cases)
+## 🧪 Automated Verification Suite (15 Test Cases)
 
-The project includes an automated test suite validating quantitative models, Gemini function calling, and multi-hub audit logging:
+The project includes an automated test suite validating quantitative models, Gemini function calling, multi-hub balance constraints, and POS store deductions:
 
 ```powershell
 python -m pytest -v tests/
 ```
 
 ```
-tests/test_llm_agent_suite.py::TestLLMDecisionEngine::test_copilot_chat_local_intelligence PASSED     [ 10%]
-tests/test_llm_agent_suite.py::TestLLMDecisionEngine::test_deterministic_solver_with_audit_trail PASSED [ 20%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc01_milk_stockout_and_po_1024 PASSED             [ 30%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc02_rice_forecast_and_deficit PASSED             [ 40%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc03_warehouse_lateral_rebalancing PASSED         [ 50%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc04_anomaly_detection_demand_spike_and_shrinkage PASSED [ 60%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc05_dynamic_safety_stock_volatility_scaling PASSED [ 70%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc06_multi_vendor_delay_simulation PASSED         [ 80%]
-tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc07_bulk_discount_tier_optimization PASSED     [ 90%]
+tests/test_enterprise_edge_cases.py::TestEnterpriseEdgeCases::test_audit_feed_entries_have_physical_locations PASSED [  6%]
+tests/test_enterprise_edge_cases.py::TestEnterpriseEdgeCases::test_customer_phone_lookup PASSED [ 13%]
+tests/test_enterprise_edge_cases.py::TestEnterpriseEdgeCases::test_multi_hub_stock_balance_constraint PASSED [ 20%]
+tests/test_enterprise_edge_cases.py::TestEnterpriseEdgeCases::test_pos_sale_deducts_chembur_stock PASSED [ 26%]
+tests/test_enterprise_edge_cases.py::TestEnterpriseEdgeCases::test_supplier_delay_disruption_reranks_to_vendor_c PASSED [ 33%]
+tests/test_llm_agent_suite.py::TestLLMDecisionEngine::test_copilot_chat_local_intelligence PASSED     [ 40%]
+tests/test_llm_agent_suite.py::TestLLMDecisionEngine::test_deterministic_solver_with_audit_trail PASSED [ 46%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc01_milk_stockout_and_po_1024 PASSED             [ 53%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc02_rice_forecast_and_deficit PASSED             [ 60%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc03_warehouse_lateral_rebalancing PASSED         [ 66%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc04_anomaly_detection_demand_spike_and_shrinkage PASSED [ 73%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc05_dynamic_safety_stock_volatility_scaling PASSED [ 80%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc06_multi_vendor_delay_simulation PASSED         [ 86%]
+tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc07_bulk_discount_tier_optimization PASSED     [ 93%]
 tests/test_ps08_suite.py::TestInvenioPS08Suite::test_tc08_healthy_sku_zero_false_positive_po PASSED   [100%]
-=================================== 10 passed in 0.16s ===================================
+=================================== 15 passed in 0.23s ===================================
 ```
 
 ### Verified Benchmark Scenarios

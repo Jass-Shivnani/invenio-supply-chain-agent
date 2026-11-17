@@ -497,14 +497,24 @@ export default function ProductsPage() {
                           let color: 'success' | 'warning' | 'error' = 'success';
                           if (stock === 0) color = 'error';
                           else if (stock <= 10) color = 'warning';
+                          const whA = product.nodes?.['WH-A'] ?? '-';
+                          const whB = product.nodes?.['WH-B'] ?? '-';
+                          const stC = product.nodes?.['ST-C'] ?? '-';
                           
                           return (
-                            <Chip
-                              label={stock}
-                              size="small"
-                              color={color}
-                              variant="outlined"
-                            />
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                              <Chip
+                                label={`${stock} units`}
+                                size="small"
+                                color={color}
+                                sx={{ fontWeight: 700 }}
+                              />
+                              {product.nodes && (
+                                <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.68rem' }}>
+                                  WH-A: {whA} | WH-B: {whB} | ST-C: {stC}
+                                </Typography>
+                              )}
+                            </Box>
                           );
                         })()}
                       </TableCell>

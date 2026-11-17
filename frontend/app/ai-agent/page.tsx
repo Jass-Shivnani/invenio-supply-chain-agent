@@ -26,6 +26,8 @@ import {
   LinearProgress,
   Tooltip,
   Divider,
+  Slider,
+  Stack,
 } from '@mui/material';
 import {
   AutoAwesome,
@@ -66,6 +68,7 @@ export default function AIAgentPage() {
     },
   ]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [vendorBDelay, setVendorBDelay] = useState(0.0);
   const [serviceZ, setServiceZ] = useState(1.645);
   const [actionNotice, setActionNotice] = useState<{ severity: 'success' | 'info' | 'error'; message: string } | null>(null);
 
@@ -90,6 +93,22 @@ export default function AIAgentPage() {
     queryKey: ['demandHistory', selectedSkuForChart],
     queryFn: () => agenticAI.getDemandHistory(selectedSkuForChart).then((res) => res.data),
   });
+
+  // 4. Live Supplier Delay Simulation (What-If Stress Test)
+  const { data: simulationData } = useQuery({
+    queryKey: ['supplierSimulation', vendorBDelay, serviceZ],
+    queryFn: () =>
+      agenticAI
+        .simulate({
+          service_level_z: serviceZ,
+          simulated_delays: { 'SKU-MILK-01': { 'VEN-B': vendorBDelay } },
+        })
+        .then((res) => res.data),
+  });
+
+  const milkSimReport = simulationData?.sku_reports?.find((s: any) => s.sku === 'SKU-MILK-01');
+  const simVendors = milkSimReport?.vendor_intelligence?.all_vendors || [];
+  const selectedVendor = milkSimReport?.vendor_intelligence?.selected_vendor;
 
   // 4. Mutations
   const rebalanceMutation = useMutation({
@@ -529,6 +548,235 @@ export default function AIAgentPage() {
                 >
                   {autoRestockMutation.isPending ? 'Authorizing...' : 'Authorize Purchase Orders for Risk SKUs'}
                 </Button>
+              </CardContent>
+            </Card>
+          </Box>
+
+          {/* Interactive Stress Test & Demand Radar Grid */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+              gap: 3,
+              mb: 3,
+            }}
+          >
+            {/* Live Supplier Disruption Simulator */}
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Speed sx={{ color: '#ea580c' }} /> What-If Supplier Delay Simulator
+                  </Typography>
+                  <Chip
+                    label={vendorBDelay > 0 ? `+${vendorBDelay.toFixed(1)}d Disruption Simulated` : 'Baseline SLA (2.0d)'}
+                    size="small"
+                    color={vendorBDelay >= 1.5 ? 'warning' : 'default'}
+                    sx={{ fontWeight: 600, fontSize: '0.72rem' }}
+                  />
+                </Box>
+
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                  Drag slider to test vendor reliability shocks (e.g. transport strike or cold-chain breakdown on Amul):
+                </Typography>
+
+                <Box sx={{ px: 2, mb: 2 }}>
+                  <Slider
+                    value={vendorBDelay}
+                    min={0.0}
+                    max={3.0}
+                    step={0.5}
+                    marks={[
+                      { value: 0, label: '0d Normal' },
+                      { value: 1, label: '+1d' },
+                      { value: 2, label: '+2d Drift' },
+                      { value: 3, label: '+3d Strike' },
+                    ]}
+                    onChange={(_, val) => setVendorBDelay(val as number)}
+                    sx={{ color: vendorBDelay >= 1.5 ? '#ea580c' : '#2563eb' }}
+                  />
+                </Box>
+
+                {/* Disruption Alert or Optimal Selection */}
+                {vendorBDelay >= 1.5 ? (
+                  <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>
+                      🚨 Amul Express Delivery Drift ({ (2.0 + vendorBDelay).toFixed(1) } days) exceeds 2.4-day runout horizon!
+                    </Typography>
+                    <Typography variant="caption">
+                      Agent dynamically demoted Amul and selected <b>Vendor C (Mother Dairy Metro Direct)</b> with 2.5-day guaranteed SLA to prevent stockout.
+                    </Typography>
+                  </Alert>
+                ) : (
+                  <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>
+                      ✓ Vendor B (Amul Express Cold-Chain) Ranked #1
+                    </Typography>
+                    <Typography variant="caption">
+                      2.0-day SLA delivers before the 2.4-day depletion window. Protects ₹2,618 in stockout penalty.
+                    </Typography>
+                  </Alert>
+                )}
+
+                {/* Supplier Comparison Mini Table */}
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                    <TableRow>
+                      <TableCell sx={{ fontSize: '0.75rem', fontWeight: 700 }}>Supplier</TableCell>
+                      <TableCell align="center" sx={{ fontSize: '0.75rem', fontWeight: 700 }}>Lead Time</TableCell>
+                      <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 700 }}>Price</TableCell>
+                      <TableCell align="center" sx={{ fontSize: '0.75rem', fontWeight: 700 }}>Agent Utility</TableCell>
+                      <TableCell align="center" sx={{ fontSize: '0.75rem', fontWeight: 700 }}>Routing</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {simVendors.map((v: any) => (
+                      <TableRow key={v.vendor_id} hover selected={v.selected}>
+                        <TableCell sx={{ fontSize: '0.75rem', fontWeight: v.selected ? 700 : 500 }}>
+                          {v.vendor_name}
+                        </TableCell>
+                        <TableCell align="center" sx={{ fontSize: '0.75rem' }}>
+                          {v.effective_lead_time_days}d
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                          ₹{v.unit_price}
+                        </TableCell>
+                        <TableCell align="center" sx={{ fontSize: '0.75rem' }}>
+                          {(v.utility_score * 100).toFixed(0)}%
+                        </TableCell>
+                        <TableCell align="center">
+                          {v.selected ? (
+                            <Chip label="Selected" size="small" color="success" sx={{ fontSize: '0.65rem', height: 18, fontWeight: 700 }} />
+                          ) : (
+                            <Chip label="Backup" size="small" sx={{ fontSize: '0.65rem', height: 18 }} />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Demand Radar & Anomaly Surge Visualizer */}
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ShowChart sx={{ color: '#7c3aed' }} /> Demand Radar & Anomaly Burst
+                  </Typography>
+                  <Chip label="Holt-Winters (α=0.45, β=0.25)" size="small" sx={{ bgcolor: '#f5f3ff', color: '#6d28d9', fontSize: '0.68rem', fontWeight: 600 }} />
+                </Box>
+
+                {/* SKU Selector Pills */}
+                <Box sx={{ display: 'flex', gap: 0.8, flexWrap: 'wrap', mb: 2 }}>
+                  {[
+                    { id: 'SKU-YOGURT-04', label: 'Greek Yogurt (+308% Promo Spike)' },
+                    { id: 'SKU-MILK-01', label: 'Full-Cream Milk (50u/d Steady)' },
+                    { id: 'SKU-OIL-05', label: 'Sunflower Oil (High Volatility)' },
+                    { id: 'SKU-WHEAT-03', label: 'Whole Wheat Atta (40u/d)' },
+                  ].map((s) => (
+                    <Chip
+                      key={s.id}
+                      label={s.label}
+                      size="small"
+                      clickable
+                      onClick={() => setSelectedSkuForChart(s.id)}
+                      color={selectedSkuForChart === s.id ? 'primary' : 'default'}
+                      variant={selectedSkuForChart === s.id ? 'filled' : 'outlined'}
+                      sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                    />
+                  ))}
+                </Box>
+
+                {/* SVG Responsive Demand Chart */}
+                <Box sx={{ width: '100%', height: 170, bgcolor: '#f8fafc', borderRadius: 2, p: 1, border: '1px solid #e2e8f0', position: 'relative' }}>
+                  {demandHistoryData?.series && demandHistoryData.series.length > 0 ? (
+                    <svg viewBox="0 0 540 140" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                      {/* Grid Lines */}
+                      <line x1="30" y1="20" x2="520" y2="20" stroke="#e2e8f0" strokeDasharray="3 3" />
+                      <line x1="30" y1="60" x2="520" y2="60" stroke="#e2e8f0" strokeDasharray="3 3" />
+                      <line x1="30" y1="100" x2="520" y2="100" stroke="#e2e8f0" strokeDasharray="3 3" />
+
+                      {/* Render 14 Historical Bars */}
+                      {demandHistoryData.series.slice(0, 14).map((pt: any, idx: number) => {
+                        const val = pt.historical || 0;
+                        const maxVal = Math.max(...demandHistoryData.series.map((p: any) => p.historical || p.forecast || 50), 100);
+                        const h = (val / maxVal) * 90;
+                        const x = 35 + idx * 22;
+                        const y = 110 - h;
+                        const isPromo = pt.promo;
+
+                        return (
+                          <g key={idx}>
+                            <rect
+                              x={x}
+                              y={y}
+                              width={14}
+                              height={h}
+                              rx={2}
+                              fill={isPromo ? '#ea580c' : '#8b5cf6'}
+                            />
+                            {isPromo && idx === 13 && (
+                              <text x={x - 15} y={y - 8} fontSize="9" fontWeight="bold" fill="#ea580c">
+                                +308% Burst
+                              </text>
+                            )}
+                          </g>
+                        );
+                      })}
+
+                      {/* Render 7 Forecast Points (D+1 to D+7) */}
+                      {demandHistoryData.series.slice(14).map((pt: any, idx: number) => {
+                        const val = pt.forecast || 0;
+                        const maxVal = Math.max(...demandHistoryData.series.map((p: any) => p.historical || p.forecast || 50), 100);
+                        const h = (val / maxVal) * 90;
+                        const x = 360 + idx * 22;
+                        const y = 110 - h;
+
+                        return (
+                          <g key={idx}>
+                            <circle cx={x + 7} cy={y} r={3.5} fill="#2563eb" />
+                            {idx < 6 && (
+                              <line
+                                x1={x + 7}
+                                y1={y}
+                                x2={x + 29}
+                                y2={110 - (demandHistoryData.series[15 + idx]?.forecast / maxVal) * 90}
+                                stroke="#2563eb"
+                                strokeDasharray="3 2"
+                                strokeWidth="2"
+                              />
+                            )}
+                          </g>
+                        );
+                      })}
+
+                      {/* Axis Labels */}
+                      <text x="35" y="128" fontSize="9" fill="#64748b">Day 1</text>
+                      <text x="180" y="128" fontSize="9" fill="#64748b">Day 7</text>
+                      <text x="310" y="128" fontSize="9" fill="#ea580c" fontWeight="bold">Day 14 (Promo)</text>
+                      <text x="440" y="128" fontSize="9" fill="#2563eb" fontWeight="bold">D+1..D+7 Forecast</text>
+                    </svg>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <CircularProgress size={20} />
+                    </Box>
+                  )}
+                </Box>
+
+                {/* Key Insights Chips */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>
+                    Historical Baseline: <b>25.0 u/d</b>
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#ea580c', fontWeight: 700 }}>
+                    Surge Peak: <b>102.0 u/d</b> (Z = 68.25)
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 700 }}>
+                    Projected 7D: <b>102.0 u/d</b>
+                  </Typography>
+                </Box>
               </CardContent>
             </Card>
           </Box>

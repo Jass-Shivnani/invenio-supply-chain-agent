@@ -86,6 +86,15 @@ def get_products():
     """)
     rows = cur.fetchall()
     
+    cur.execute("SELECT sku, warehouse_id, current_stock, reserved_stock FROM inventory_nodes")
+    node_rows = cur.fetchall()
+    nodes_by_sku = {}
+    for nr in node_rows:
+        s = nr["sku"]
+        if s not in nodes_by_sku:
+            nodes_by_sku[s] = {}
+        nodes_by_sku[s][nr["warehouse_id"]] = max(0, nr["current_stock"] - nr["reserved_stock"])
+
     # Map to frontend model
     products_list = []
     for r in rows:
@@ -106,6 +115,7 @@ def get_products():
             "reorderLevel": int(r["total_min_buffer"]),
             "description": f"{r['category']} — Seasonal Pattern: {r['seasonal_tag']}",
             "location": "WH-A (Bhiwandi), WH-B (Turbhe), ST-C (Chembur)",
+            "nodes": nodes_by_sku.get(r["sku"], {}),
         })
     conn.close()
     return {"products": products_list, "count": len(products_list)}
