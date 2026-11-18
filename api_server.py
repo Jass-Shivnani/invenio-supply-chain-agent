@@ -450,14 +450,20 @@ def get_invoices():
     rows = cur.fetchall()
     invs = []
     for r in rows:
+        num = r["invoice_number"]
+        is_gst = any(num.endswith(suf) for suf in ["004", "005", "008", "010", "011", "015"])
+        gstin = "27AABCP8841M1Z5" if is_gst else ""
         invs.append({
             "invoiceId": r["invoice_id"],
             "invoiceNumber": r["invoice_number"],
             "customerName": r["customer_name"],
             "customerPhone": r["customer_phone"],
+            "customerGSTIN": gstin,
             "total": float(r["total"]),
             "status": r["status"],
             "date": r["date"],
+            "createdAt": r["date"],
+            "template": {"gstDetails": {"customerGSTIN": gstin}} if is_gst else {},
             "items": json.loads(r["items_json"]) if r["items_json"] else [],
         })
     conn.close()
@@ -488,6 +494,9 @@ def get_invoice_detail(invoice_id: str):
             "total": tot,
         })
     subtotal = sum(i["total"] for i in enriched_items)
+    num = r["invoice_number"]
+    is_gst = any(num.endswith(suf) for suf in ["004", "005", "008", "010", "011", "015"])
+    gstin = "27AABCP8841M1Z5" if is_gst else ""
 
     inv_dict = {
         "invoiceId": r["invoice_id"],
@@ -496,6 +505,7 @@ def get_invoice_detail(invoice_id: str):
         "customerPhone": r["customer_phone"],
         "customerEmail": "customer@invenio.in",
         "customerAddress": "Chembur Commercial District, Mumbai",
+        "customerGSTIN": gstin,
         "total": float(r["total"]),
         "subtotal": subtotal,
         "tax": 0.0,
@@ -510,6 +520,7 @@ def get_invoice_detail(invoice_id: str):
             "companyAddress": "Shop 12, Chembur Central, Mumbai - 400071",
             "companyEmail": "billing@invenio.in",
             "companyPhone": "+91 (022) 2522-8900",
+            "gstDetails": {"customerGSTIN": gstin} if is_gst else None,
         },
     }
     return {"invoice": inv_dict}

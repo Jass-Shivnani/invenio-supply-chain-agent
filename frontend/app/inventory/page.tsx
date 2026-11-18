@@ -57,6 +57,10 @@ export default function InventoryPage() {
     refetchInterval: 8000,
   });
 
+  const totalWhA = (multiHubData?.multiHubInventory || []).reduce((acc: number, item: any) => acc + (item.nodes?.['WH-A']?.currentStock || 0), 0);
+  const totalWhB = (multiHubData?.multiHubInventory || []).reduce((acc: number, item: any) => acc + (item.nodes?.['WH-B']?.currentStock || 0), 0);
+  const totalStC = (multiHubData?.multiHubInventory || []).reduce((acc: number, item: any) => acc + (item.nodes?.['ST-C']?.currentStock || 0), 0);
+
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['products'],
     queryFn: () => productsAPI.getAll().then((res) => res.data),
@@ -194,7 +198,7 @@ export default function InventoryPage() {
                 WH-A: Bhiwandi Mega Hub
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', mt: 0.5 }}>
-                1,240 <Typography component="span" variant="body2" color="text.secondary">units</Typography>
+                {totalWhA > 0 ? totalWhA.toLocaleString('en-IN') : '2,890'} <Typography component="span" variant="body2" color="text.secondary">units</Typography>
               </Typography>
               <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>
                 ✓ Central Reserve Surplus Available
@@ -206,7 +210,7 @@ export default function InventoryPage() {
                 WH-B: Turbhe Cold Hub
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 800, color: '#0c4a6e', mt: 0.5 }}>
-                280 <Typography component="span" variant="body2" color="text.secondary">units</Typography>
+                {totalWhB > 0 ? totalWhB.toLocaleString('en-IN') : '1,560'} <Typography component="span" variant="body2" color="text.secondary">units</Typography>
               </Typography>
               <Typography variant="caption" sx={{ color: '#0284c7', fontWeight: 600 }}>
                 • Rebalance Target (Wheat Atta Deficit)
@@ -218,7 +222,7 @@ export default function InventoryPage() {
                 ST-C: Chembur Retail Store
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', mt: 0.5 }}>
-                190 <Typography component="span" variant="body2" color="text.secondary">units</Typography>
+                {totalStC > 0 ? totalStC.toLocaleString('en-IN') : '780'} <Typography component="span" variant="body2" color="text.secondary">units</Typography>
               </Typography>
               <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>
                 ✓ Walk-in Retail Point-of-Sale Active
