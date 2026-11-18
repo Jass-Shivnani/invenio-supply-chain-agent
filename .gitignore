@@ -46,7 +46,10 @@ yarn-error.log*
 .idea/
 *.swp
 *.swo
+*.swo
 *~
 Thumbs.db
+*.DS_Store
+*.zip
 [Dd]esktop.ini
 .DS_Store
